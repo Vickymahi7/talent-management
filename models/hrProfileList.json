@@ -1,0 +1,22 @@
+[
+    {
+        "hr_profile_id": "1",
+        "hr_profile_type_id": null,
+        "contact_id": "1",
+        "first_name": "Vignesh",
+        "last_name": "Vicky",
+        "middle_name": "",
+        "position": "Junior Developer",
+        "gender": "M",
+        "date_of_birth": "",
+        "photo_url": "",
+        "skill": "Leadership, Problem Solving",
+        "status_id": 1,
+        "resume_url": null,
+        "user_id": 1,
+        "active": 1,
+        "created_by_id": null,
+        "created_dt": null,
+        "last_updated_d": null
+    }
+]

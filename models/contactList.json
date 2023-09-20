@@ -1,0 +1,19 @@
+[
+    {
+        "contact_id": "1",
+        "email_id": "test@test.com",
+        "alternate_email_id": null,
+        "mobile": "9874512300",
+        "alternate_mobile": "",
+        "phone": "",
+        "office_phone": "",
+        "website": "http://test.com",
+        "facebook_id": "",
+        "twitter_id": "",
+        "linkedin_id": "",
+        "skype_id": "",
+        "active": 1,
+        "created_dt": null,
+        "last_updated_dt": null
+    }
+]
