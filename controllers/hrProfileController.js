@@ -1,5 +1,7 @@
 let hrProfileList = require('../models/hrProfileList.json');
 let contactList = require('../models/contactList.json');
+let addressList = require('../models/addressList.json');
+let projectList = require('../models/projectList.json');
 let educationList = require('../models/educationList.json');
 let workExperienceList = require('../models/workExperienceList.json');
 
@@ -15,7 +17,6 @@ const getHrProfileList = async (req, res, next) => {
 
 const hrProfileAdd = async (req, res, next) => {
     try {
-        const contactId = hrProfileList.length + 1;
         hrProfileIdCount++;
 
         let hrProfile = { ...req.body, hr_profile_id: hrProfileIdCount, contact_id: hrProfileIdCount };
@@ -72,11 +73,18 @@ const getHrProfileDetail = async (req, res, next) => {
             if (hrProfile && hrProfile.hr_profile_id) {
                 let contact = contactList.find(data => data.contact_id == hrProfile.contact_id);
                 contact = contact ? contact : null;
+                if (contact) {
+                    let address = addressList.find(data => data.contact_id == contact.contact_id);
+                    address = address ? address : null;
+                    contact = { ...contact, ...{ address } }
+                }
                 let education = educationList.filter(data => data.hr_profile_id == hrProfileId);
                 education = education ? education : null;
                 let workExperience = workExperienceList.filter(data => data.hr_profile_id == hrProfileId);
                 workExperience = workExperience ? workExperience : null;
-                let hrProfileDetail = { ...hrProfile, contact: contact, education: education, work_experience: workExperience };
+                let project = projectList.filter(data => data.hr_profile_id == hrProfileId);
+                project = project ? project : null;
+                let hrProfileDetail = { ...hrProfile, contact: contact, education: education, project: project, work_experience: workExperience };
                 return res.status(200).json({ hrProfileDetail });
             }
         }

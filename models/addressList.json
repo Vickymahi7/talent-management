@@ -1,0 +1,13 @@
+[
+    {
+        "address_id": 1,
+        "contact_id": 1,
+        "buiding_number": "18/21",
+        "street_name": "North Street",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "country_id": null,
+        "postal_code": "",
+        "last_updated_dt": null
+    }
+]

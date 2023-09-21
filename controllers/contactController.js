@@ -1,7 +1,7 @@
 let contactList = require('../models/contactList.json');
 let contactIdCount = 1;
 
-const getContactList = async (req, res) => {
+const getContactList = async (req, res, next) => {
     try {
         res.status(200).json({ contactList });
     } catch (error) {
@@ -9,15 +9,14 @@ const getContactList = async (req, res) => {
     }
 }
 
-const contactAdd = async (req, res) => {
+const contactAdd = async (req, res, next) => {
     try {
         if (!req.body.email_id || req.body.email_id == '') {
             res.status(400).json({ message: 'Email Id is required' });
         }
         else {
-            const addressId = contactList.length + 1;
             contactIdCount++;
-            let contact = { ...req.body, contact_id: contactIdCount, address_id: addressId, };
+            let contact = { ...req.body, contact_id: contactIdCount, address_id: contactIdCount, };
             contactList.push(contact);
 
             res.status(201).json({ message: 'Contact Created Successfully' });
@@ -27,7 +26,7 @@ const contactAdd = async (req, res) => {
     }
 }
 
-const contactUpdate = async (req, res) => {
+const contactUpdate = async (req, res, next) => {
     try {
         let contact = req.body;
         if (contactList.length > 0 && contact.contact_id) {
@@ -48,7 +47,7 @@ const contactUpdate = async (req, res) => {
     }
 }
 
-const contactView = async (req, res) => {
+const contactView = async (req, res, next) => {
     try {
         let contactId = req.params.id;
         if (contactList.length > 0 && contactId) {
@@ -63,7 +62,7 @@ const contactView = async (req, res) => {
     }
 }
 
-const contactDelete = async (req, res) => {
+const contactDelete = async (req, res, next) => {
     let contactId = req.params.id;
     try {
         if (contactList.length > 0 && contactId) {

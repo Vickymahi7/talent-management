@@ -1,0 +1,16 @@
+[
+    {
+        "project_id": 1,
+        "hr_profile_id": 1,
+        "title": "Project Management",
+        "start_date": "2019-08-15",
+        "end_date": "2022-08-15",
+        "client": "Application Users",
+        "technology": "Java, Javascript, Vue Js, MySQL",
+        "description": "Created a Project Management Application",
+        "location": "Chennai",
+        "active": 1,
+        "created_dt": null,
+        "last_updated_dt": null
+    }
+]
