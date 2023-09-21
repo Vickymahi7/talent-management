@@ -15,7 +15,6 @@ const getUserList = async (req, res, next) => {
 
 const userLogin = async (req, res, next) => {
     try {
-        console.log(req.headers);
         let user = req.body;
         if (!user.email_id || user.email_id == '') {
             res.status(400).json({ message: 'Email ID is required' });
@@ -29,7 +28,6 @@ const userLogin = async (req, res, next) => {
                 if (userData && userData.email_id) {
                     const isPaswordMatched = await bcrypt.compare(user.password, userData.password);
                     if (isPaswordMatched) {
-                        console.log(userData.user_id)
                         const token = jwt.sign({ user_id: userData }, ACCESS_TOKEN_SECRET, { expiresIn: 60 * 60 });
                         return res.status(200).json({ accessToken: token });
                     }

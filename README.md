@@ -1,5 +1,7 @@
 ## Run The Project
 
+    - npm install
+    
     - npm run dev
 
 
