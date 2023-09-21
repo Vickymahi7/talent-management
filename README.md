@@ -14,7 +14,7 @@
             -   "password": "demo123"
 
 
-    - User - Endpoints
+    ### User - Endpoints
         - GET       /public/signup
                     - payload:
                         {
@@ -36,7 +36,7 @@
         - DELETE    /user/delete/{id}
 
 
-    - HR Profile - Endpoints
+    ### HR Profile - Endpoints
         - GET       /hrprofile/list
         - GET       /hrprofile/detail/{id}
         - POST      /hrprofile/add
@@ -61,7 +61,7 @@
         - DELETE    /hrprofile/delete/{id}
 
     
-    - Contact - Endpoints
+    ### Contact - Endpoints
         - GET       /contact/list
         - POST      /contact/add
                     - payload:   
@@ -85,7 +85,7 @@
         - DELETE    /contact/delete/{id}
 
 
-    - Address - Endpoints
+    ### Address - Endpoints
         - GET       /address/list
         - POST      /address/add
                     - payload:   
@@ -105,7 +105,7 @@
         - DELETE    /address/delete/{id}
 
 
-    - Education - Endpoints
+    ### Education - Endpoints
         - GET       /education/list
         - POST      /education/add
                     - payload:   
@@ -125,7 +125,7 @@
         - DELETE    /education/delete/{id}
 
 
-    - Work Experience - Endpoints
+    ### Work Experience - Endpoints
         - GET       /workexperience/list
         - POST      /workexperience/add
                     - payload:   
@@ -141,7 +141,7 @@
         - DELETE    /workexperience/delete/{id}
 
     
-    - Project - Endpoints
+    ### Project - Endpoints
         - GET       /project/list
         - POST      /project/add
                     - payload:   
