@@ -44,8 +44,8 @@
                         {
                             "hr_profile_id": "1",
                             "contact_id": "1",
-                            "first_name": "Vignesh",
-                            "last_name": "Vicky",
+                            "first_name": "Firstname",
+                            "last_name": "lastname",
                             "middle_name": "",
                             "position": "Junior Developer",
                             "gender": "M",
@@ -113,9 +113,9 @@
                             "education_id": "1",
                             "hr_profile_id": "1",
                             "degree": "BE",
-                            "major": "Mechanical Engineering",
-                            "university": "Anna University",
-                            "location": "Chennai",
+                            "major": "Computer Science Engineering",
+                            "university": "NIT",
+                            "location": "",
                             "start_date": "",
                             "end_date": ""
                         }
