@@ -10,19 +10,17 @@ const projectRoutes = require('./routes/projectRoutes');
 const workExperienceRoutes = require('./routes/workExperienceRoutes');
 const hrProfileRoutes = require('./routes/hrProfileRoutes');
 const userRoutes = require('./routes/userRoutes');
-const publicRoutes = require('./routes/publicRoutes');
 const errorHandler = require('./middlewares/errorHandlerMiddleware');
 const { checkUserAuth } = require('./middlewares/authMiddleware');
 
 app.use(cors());
 app.use(express.json());
 
+
 // Routes
-app.use('/api/v1/public', publicRoutes);
+app.use('/api/v1/user', userRoutes);
 
 app.use(checkUserAuth);
-
-app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/hrprofile', hrProfileRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/project', projectRoutes);

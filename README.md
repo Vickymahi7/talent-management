@@ -15,7 +15,7 @@
 
 
 ### User - Endpoints
-    - POST       /public/signup
+    - POST       /user/signup
                 - payload:
                     {
                         "user_name": "Demo User",
@@ -23,7 +23,7 @@
                         "password": "demo123"
                     }
 
-    - POST       /public/login
+    - POST       /user/login
                 - payload:   
                     {
                         "email_id": "demouser@demo.com",
