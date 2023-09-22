@@ -9,7 +9,7 @@ const checkUserAuth = (req, res, next) => {
     if (token) {
         jwt.verify(token, ACCESS_TOKEN_SECRET, async (err, decodedToken) => {
             if (err) {
-                return res.status(401).send('Unauthorized, please Login to continue');
+                return res.status(403).send('Unauthorized, please Login to continue');
             } else {
                 next();
             }

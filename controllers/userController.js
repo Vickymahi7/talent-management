@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 let userList = require('../models/userList.json');
-const ACCESS_TOKEN_SECRET = 'my-secret-key-for-demo';
+const ACCESS_TOKEN_SECRET = 'my-access-token-secret-key-for-demo';
 let userIdCount = 1;
 
 const getUserList = async (req, res, next) => {
@@ -28,8 +28,8 @@ const userLogin = async (req, res, next) => {
                 if (userData && userData.email_id) {
                     const isPaswordMatched = await bcrypt.compare(user.password, userData.password);
                     if (isPaswordMatched) {
-                        const token = jwt.sign({ user_id: userData }, ACCESS_TOKEN_SECRET, { expiresIn: 60 * 60 });
-                        return res.status(200).json({ accessToken: token });
+                        const accessToken = jwt.sign({ user_id: userData.user_id }, ACCESS_TOKEN_SECRET, { expiresIn: 60 * 30 });
+                        return res.status(200).json({ accessToken: accessToken });
                     }
                 }
             }
@@ -84,8 +84,6 @@ const userUpdate = async (req, res, next) => {
             if (userList.length > 0 && user.user_id) {
                 let userData = userList.find(data => data.user_id == user.user_id);
                 if (userData && userData.user_id) {
-                    const salt = await bcrypt.genSalt();
-                    const hashedPassword = await bcrypt.hash(req.body.password, salt);
                     userList = userList.map(data => {
                         if (data.user_id == user.user_id) {
                             data = { ...data, ...user };
