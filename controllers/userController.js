@@ -2,7 +2,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 let userList = require('../models/userList.json');
-const ACCESS_TOKEN_SECRET = 'my-access-token-secret-key-for-demo';
 let userIdCount = 1;
 
 const getUserList = async (req, res, next) => {
@@ -28,7 +27,7 @@ const userLogin = async (req, res, next) => {
                 if (userData && userData.email_id) {
                     const isPaswordMatched = await bcrypt.compare(user.password, userData.password);
                     if (isPaswordMatched) {
-                        const accessToken = jwt.sign({ user_id: userData.user_id }, ACCESS_TOKEN_SECRET, { expiresIn: 60 * 30 });
+                        const accessToken = jwt.sign({ user_id: userData.user_id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: 60 * 30 });
                         return res.status(200).json({ accessToken: accessToken });
                     }
                 }
@@ -53,7 +52,7 @@ const userAdd = async (req, res, next) => {
         }
         else {
             let isUserExists = userList.some(item => item.email_id === req.body.email_id);
-            if (isUserExists) return res.status(409).json({ message: 'User aleady exists' });
+            if (isUserExists) return res.status(409).json({ message: 'Email Id aleady exists' });
             userIdCount++;
             const salt = await bcrypt.genSalt();
             const hashedPassword = await bcrypt.hash(req.body.password, salt);
