@@ -20,7 +20,7 @@
         "street_name": "North Street",
         "city": "Chennai",
         "state": "Tamil Nadu",
-        "country_id": null,
+        "country": "India",
         "postal_code": "",
         "website": "http://test.com",
         "facebook_id": "",
