@@ -9,3 +9,6 @@
 
     Swagger API Docs Link 
         - http://localhost:3000/api/v1/docs
+
+        
+        - /user/login for Access Token

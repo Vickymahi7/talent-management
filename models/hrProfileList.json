@@ -33,7 +33,7 @@
         "created_by_id": null,
         "created_dt": null,
         "last_updated_dt": null,
-        "skills": "[]",
+        "skills": "[\"Java\",\"Javascript\"]",
         "work_experience": "[{\"company\":\"Test Info Tech\",\"location\":\"Chennai\",\"start_date\":\"2019-08-15\",\"end_date\":null,\"description\":\"TIT\"}]",
         "project": "[{\"title\":\"Project Management\",\"start_date\":\"2019-08-15\",\"end_date\":\"2022-08-15\",\"client\":\"Application Users\",\"technology\":\"Java, Javascript, Vue Js, MySQL\",\"description\":\"Created a Project Management Application\",\"location\":\"Chennai\"}]",
         "education": "[{\"degree\":\"BE\",\"major\":\"Mechanical Engineering\",\"university\":\"Anna University\",\"location\":\"Chennai\",\"start_date\":\"\",\"end_date\":\"\"}]"

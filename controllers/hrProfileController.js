@@ -137,6 +137,13 @@ let hrProfileIdCount = 1;
  *     tags: [HR Profile]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: skills
+ *         description: Search Skill to find any matching Resume
+ *         schema:
+ *           type: string
+ *         example: Java
  *     responses:
  *       201:
  *         description: Successful Response
@@ -145,7 +152,20 @@ let hrProfileIdCount = 1;
  */
 const getHrProfileList = async (req, res, next) => {
     try {
-        const newList = hrProfileList.map(data => {
+        let { skills } = req.query;
+
+        let filteredHrProfileList = hrProfileList.length > 0 ? [...hrProfileList] : [];
+        if (skills && hrProfileList.length > 0) {
+            skills = skills.toLowerCase();
+            filteredHrProfileList = filteredHrProfileList.filter(data => {
+                const skillsArray = data.skills ? JSON.parse(data.skills.toLowerCase()) : '';
+                console.log(skillsArray, skills)
+                if (skillsArray.includes(skills)) {
+                    return data;
+                }
+            });
+        }
+        const newList = filteredHrProfileList.map(data => {
             const newData = { ...data };
             newData.work_experience = data.work_experience ? JSON.parse(data.work_experience) : '';
             newData.project = data.project ? JSON.parse(data.project) : '';
