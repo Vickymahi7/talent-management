@@ -4,14 +4,45 @@ require('dotenv').config();
 let userList = require('../models/userList.json');
 let userIdCount = 1;
 
-const getUserList = async (req, res, next) => {
-    try {
-        res.status(200).json({ userList });
-    } catch (error) {
-        next(error);
-    }
-}
-
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: APIs for Managing Users
+ * /user/login:
+ *   post:
+ *     summary: User Login
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email_id:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *             required:
+ *               - email_id
+ *               - password
+ *             example:
+ *               email_id: demouser@demo.com
+ *               password: demo123
+ *     responses:
+ *       200:
+ *         description: User Successfully Logged In
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *       400:
+ *         description: Incorrect Email ID / Password
+ */
 const userLogin = async (req, res, next) => {
     try {
         let user = req.body;
@@ -39,6 +70,65 @@ const userLogin = async (req, res, next) => {
     }
 }
 
+
+/**
+ * @swagger
+ * /user/signup:
+ *   post:
+ *     summary: Add New User Account
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_type_id:
+ *                 type: number
+ *               user_name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               email_id:
+ *                 type: string
+ *               created_by_id:
+ *                 type: number
+ *               status_id:
+ *                 type: string
+ *               active:
+ *                 type: boolean
+ *               last_access:
+ *                 type: string
+ *               created_dt:
+ *                 type: string
+ *               last_updated_dt:
+ *                 type: string
+ *             required:
+ *               - user_name
+ *               - email_id
+ *               - password
+ *             example:
+ *               user_type_id: null
+ *               user_name: Demo User
+ *               password: demo123
+ *               email_id: demouser@demo.com
+ *               created_by_id: null
+ *               status_id: null
+ *               active: 1
+ *               last_access: null
+ *               created_dt: null
+ *               last_updated_dt: null
+ *     responses:
+ *       201:
+ *         description: Record Created.
+ *       400:
+ *         description: Bad Request.
+ *       409:
+ *         description: Conflict.
+ *       500:
+ *         description: Server error
+ */
 const userAdd = async (req, res, next) => {
     try {
         if (!req.body.user_name || req.body.user_name == '') {
@@ -66,6 +156,87 @@ const userAdd = async (req, res, next) => {
     }
 }
 
+/**
+ * @swagger
+ * /user/list:
+ *   get:
+ *     summary: List all Users
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successful response.
+ *       500:
+ *         description: Server error
+ */
+const getUserList = async (req, res, next) => {
+    try {
+        res.status(200).json({ userList });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * @swagger
+ * /user/update:
+ *   put:
+ *     summary: Update User Details
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: number
+ *               user_type_id:
+ *                 type: number
+ *               user_name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               email_id:
+ *                 type: string
+ *               created_by_id:
+ *                 type: number
+ *               status_id:
+ *                 type: string
+ *               active:
+ *                 type: boolean
+ *               last_access:
+ *                 type: string
+ *               created_dt:
+ *                 type: string
+ *               last_updated_dt:
+ *                 type: string
+ *             required:
+ *               - user_id
+ *               - user_name
+ *               - email_id
+ *             example:
+ *               user_id: 1
+ *               user_type_id: null
+ *               user_name: Demo User
+ *               password: demo123
+ *               email_id: demouser@demo.com
+ *               created_by_id: null
+ *               status_id: null
+ *               active: 1
+ *               last_access: null
+ *               created_dt: null
+ *               last_updated_dt: null
+ *     responses:
+ *       200:
+ *         description: Successful response.
+ *       500:
+ *         description: Server error
+ */
 const userUpdate = async (req, res, next) => {
     try {
         const { password, ...rest } = req.body;
@@ -83,7 +254,7 @@ const userUpdate = async (req, res, next) => {
             if (userList.length > 0 && user.user_id) {
                 let userData = userList.find(data => data.user_id == user.user_id);
                 if (userData && userData.user_id) {
-                    userList = userList.map(data => {
+                    userList.map(data => {
                         if (data.user_id == user.user_id) {
                             data = { ...data, ...user };
                         }
@@ -92,13 +263,36 @@ const userUpdate = async (req, res, next) => {
                     return res.status(200).json({ message: 'User Updated Successfully' });
                 }
             }
-            res.status(404).json({ message: 'Record not found' });
+            res.status(404).json({ message: 'User not found' });
         }
     } catch (error) {
         next(error);
     }
 }
 
+
+/**
+ * @swagger
+ * /user/view/{id}:
+ *   get:
+ *     summary: Get User Details by User Id
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: Successful response.
+ *       404:
+ *         description: Not Found.
+ *       500:
+ *         description: Server error
+ */
 const userView = async (req, res, next) => {
     try {
         let userId = req.params.id;
@@ -108,12 +302,35 @@ const userView = async (req, res, next) => {
                 return res.status(200).json({ user });
             }
         }
-        res.status(404).json({ message: 'Record not found' });
+        res.status(404).json({ message: 'User not found' });
     } catch (error) {
         next(error);
     }
 }
 
+
+/**
+ * @swagger
+ * /user/delete/{id}:
+ *   delete:
+ *     summary: Delete a User by User Id
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: Successful response.
+ *       404:
+ *         description: Not Found.
+ *       500:
+ *         description: Server error
+ */
 const userDelete = async (req, res, next) => {
     let userId = req.params.id;
     try {
@@ -124,7 +341,7 @@ const userDelete = async (req, res, next) => {
                 return res.status(200).json({ message: 'User Deleted Successfully' });
             }
         }
-        res.status(404).json({ message: 'Record not found' });
+        res.status(404).json({ message: 'User not found' });
     } catch (error) {
         next(error);
     }
