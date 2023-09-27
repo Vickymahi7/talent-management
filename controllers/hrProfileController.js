@@ -159,7 +159,6 @@ const getHrProfileList = async (req, res, next) => {
             skills = skills.toLowerCase();
             filteredHrProfileList = filteredHrProfileList.filter(data => {
                 const skillsArray = data.skills ? JSON.parse(data.skills.toLowerCase()) : '';
-                console.log(skillsArray, skills)
                 if (skillsArray.includes(skills)) {
                     return data;
                 }
