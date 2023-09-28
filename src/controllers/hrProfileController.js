@@ -144,10 +144,8 @@ let hrProfileIdCount = 1;
  *         schema:
  *           type: string
  *     responses:
- *       201:
- *         description: Successful Response
- *       500:
- *         description: Server error
+ *       200:
+ *         description: OK.
  */
 const getHrProfileList = async (req, res, next) => {
     try {
@@ -252,13 +250,7 @@ const getHrProfileList = async (req, res, next) => {
  *                   end_date: 2015-04-30
  *     responses:
  *       201:
- *         description: Record Created.
- *       400:
- *         description: Bad Request.
- *       409:
- *         description: Conflict.
- *       500:
- *         description: Server error
+ *         description: Created.
  */
 const hrProfileAdd = async (req, res, next) => {
     try {
@@ -361,14 +353,8 @@ const hrProfileAdd = async (req, res, next) => {
  *                   start_date: 2011-08-28
  *                   end_date: 2015-04-30
  *     responses:
- *       201:
- *         description: Record Created.
- *       400:
- *         description: Bad Request.
- *       409:
- *         description: Conflict.
- *       500:
- *         description: Server error
+ *       200:
+ *         description: OK.
  */
 const hrProfileUpdate = async (req, res, next) => {
     try {
@@ -416,11 +402,7 @@ const hrProfileUpdate = async (req, res, next) => {
  *         type: integer
  *     responses:
  *       200:
- *         description: Successful response.
- *       404:
- *         description: Not Found.
- *       500:
- *         description: Server error
+ *         description: OK.
  */
 const hrProfileView = async (req, res, next) => {
     try {
@@ -459,11 +441,7 @@ const hrProfileView = async (req, res, next) => {
  *         type: integer
  *     responses:
  *       200:
- *         description: Successful response.
- *       404:
- *         description: Not Found.
- *       500:
- *         description: Server error
+ *         description: OK.
  */
 const hrProfileDelete = async (req, res, next) => {
     try {

@@ -32,7 +32,7 @@ let userIdCount = 1;
  *               password: demo123
  *     responses:
  *       200:
- *         description: User Successfully Logged In
+ *         description: OK
  *         content:
  *           application/json:
  *             schema:
@@ -40,8 +40,6 @@ let userIdCount = 1;
  *               properties:
  *                 accessToken:
  *                   type: string
- *       400:
- *         description: Incorrect Email ID / Password
  */
 const userLogin = async (req, res, next) => {
     try {
@@ -118,13 +116,7 @@ const userLogin = async (req, res, next) => {
  *               active: true
  *     responses:
  *       201:
- *         description: Record Created.
- *       400:
- *         description: Bad Request.
- *       409:
- *         description: Conflict.
- *       500:
- *         description: Server error
+ *         description: Created.
  */
 const userAdd = async (req, res, next) => {
     try {
@@ -163,9 +155,7 @@ const userAdd = async (req, res, next) => {
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Successful response.
- *       500:
- *         description: Server error
+ *         description: OK.
  */
 const getUserList = async (req, res, next) => {
     try {
@@ -226,9 +216,7 @@ const getUserList = async (req, res, next) => {
  *               active: true
  *     responses:
  *       200:
- *         description: Successful response.
- *       500:
- *         description: Server error
+ *         description: OK.
  */
 const userUpdate = async (req, res, next) => {
     try {
@@ -240,11 +228,11 @@ const userUpdate = async (req, res, next) => {
         else if (!req.body.email_id || req.body.email_id == '') {
             res.status(400).json({ message: 'Email ID is required' });
         }
-        else if (!req.body.password || req.body.password == '') {
-            res.status(400).json({ message: 'Password is required' });
-        }
         else {
             if (userList.length > 0 && user.user_id) {
+                let isUserExists = userList.some(item => item.user_id != user.user_id && item.email_id === user.email_id);
+                if (isUserExists) return res.status(409).json({ message: 'Email Id aleady exists' });
+
                 let userData = userList.find(data => data.user_id == user.user_id);
                 if (userData && userData.user_id) {
                     userList = userList.map(data => {
@@ -281,11 +269,7 @@ const userUpdate = async (req, res, next) => {
  *         type: integer
  *     responses:
  *       200:
- *         description: Successful response.
- *       404:
- *         description: Not Found.
- *       500:
- *         description: Server error
+ *         description: OK.
  */
 const userView = async (req, res, next) => {
     try {
@@ -319,11 +303,7 @@ const userView = async (req, res, next) => {
  *         type: integer
  *     responses:
  *       200:
- *         description: Successful response.
- *       404:
- *         description: Not Found.
- *       500:
- *         description: Server error
+ *         description: OK.
  */
 const userDelete = async (req, res, next) => {
     let userId = req.params.id;
