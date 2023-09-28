@@ -1,14 +1,14 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const swagger = require('./configs/swaggerConfig');
+const swagger = require('./src/configs/swaggerConfig');
 const swaggerUi = require('swagger-ui-express');
 
-const PORT = 3000;
-const hrProfileRoutes = require('./routes/hrProfileRoutes');
-const userRoutes = require('./routes/userRoutes');
-const errorHandler = require('./middlewares/errorHandlerMiddleware');
-const { checkUserAuth } = require('./middlewares/authMiddleware');
+const PORT = process.env.PORT || 3000;
+const hrProfileRoutes = require('./src/routes/hrProfileRoutes');
+const userRoutes = require('./src/routes/userRoutes');
+const errorHandler = require('./src/middlewares/errorHandlerMiddleware');
+const { checkUserAuth } = require('./src/middlewares/authMiddleware');
 
 app.use(cors());
 app.use(express.json());

@@ -115,10 +115,7 @@ const userLogin = async (req, res, next) => {
  *               email_id: demouser@demo.com
  *               created_by_id: null
  *               status_id: null
- *               active: 1
- *               last_access: null
- *               created_dt: null
- *               last_updated_dt: null
+ *               active: true
  *     responses:
  *       201:
  *         description: Record Created.
@@ -223,14 +220,10 @@ const getUserList = async (req, res, next) => {
  *               user_id: 1
  *               user_type_id: null
  *               user_name: Demo User
- *               password: demo123
  *               email_id: demouser@demo.com
  *               created_by_id: null
  *               status_id: null
- *               active: 1
- *               last_access: null
- *               created_dt: null
- *               last_updated_dt: null
+ *               active: true
  *     responses:
  *       200:
  *         description: Successful response.
@@ -254,9 +247,10 @@ const userUpdate = async (req, res, next) => {
             if (userList.length > 0 && user.user_id) {
                 let userData = userList.find(data => data.user_id == user.user_id);
                 if (userData && userData.user_id) {
-                    userList.map(data => {
+                    userList = userList.map(data => {
                         if (data.user_id == user.user_id) {
                             data = { ...data, ...user };
+                            console.log(data);
                         }
                         return data;
                     })

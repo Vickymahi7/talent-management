@@ -140,10 +140,9 @@ let hrProfileIdCount = 1;
  *     parameters:
  *       - in: query
  *         name: skills
- *         description: Search Skill to find any matching Resume
+ *         description: To filter Resumes based on skill
  *         schema:
  *           type: string
- *         example: Java
  *     responses:
  *       201:
  *         description: Successful Response
@@ -223,7 +222,7 @@ const getHrProfileList = async (req, res, next) => {
  *               skype_id: 
  *               status_id: 1
  *               user_id: 1
- *               active: 1
+ *               active: true
  *               created_by_id: null
  *               created_dt: null
  *               last_updated_dt: null
@@ -333,7 +332,7 @@ const hrProfileAdd = async (req, res, next) => {
  *               skype_id: 
  *               status_id: 1
  *               user_id: 1
- *               active: 1
+ *               active: true
  *               created_by_id: null
  *               created_dt: null
  *               last_updated_dt: null
