@@ -178,6 +178,69 @@ const getHrProfileList = async (req, res, next) => {
 
 /**
  * @swagger 
+ * /hrprofile/photoupload:
+ *   post:
+ *     summary: Upload Profile Picture
+ *     tags: [HR Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: number
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *             required:
+ *               - id
+ *               - file
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+const hrProfilePhotoUpload = async (req, res, next) => {
+    try {
+
+        const file = req.file;
+        if (!file) {
+            res.status(400).send('Please select a photo to upload.');
+            return;
+        }
+
+        if (!req.body.id || req.body.id == '') {
+            return res.status(400).json({ message: 'Profile Id is required' });
+        }
+
+        if (hrProfileList.length > 0) {
+
+            let hrProfileData = hrProfileList.find(data => data.hr_profile_id == req.body.id);
+            if (hrProfileData && hrProfileData.hr_profile_id) {
+
+                hrProfileList = hrProfileList.map(data => {
+                    const newData = { ...data };
+                    if (data.hr_profile_id == req.body.id) {
+                        newData.photo_url = file.path ? file.path : '';
+                    }
+                    return newData;
+                })
+                return res.status(200).json({ message: 'Photo Uploaded Successfully' });
+            }
+        }
+        res.status(404).json({ message: 'Record not found' });
+    } catch (error) {
+        next(error);
+    }
+}
+
+
+/**
+ * @swagger 
  * /hrprofile/add:
  *   post:
  *     summary: Add New Profile
@@ -461,6 +524,7 @@ const hrProfileDelete = async (req, res, next) => {
 
 module.exports = {
     getHrProfileList,
+    hrProfilePhotoUpload,
     hrProfileAdd,
     hrProfileUpdate,
     hrProfileView,
