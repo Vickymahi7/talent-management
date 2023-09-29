@@ -238,7 +238,6 @@ const userUpdate = async (req, res, next) => {
                     userList = userList.map(data => {
                         if (data.user_id == user.user_id) {
                             data = { ...data, ...user };
-                            console.log(data);
                         }
                         return data;
                     })
