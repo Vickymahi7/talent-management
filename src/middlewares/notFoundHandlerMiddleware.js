@@ -1,9 +1,9 @@
-const express = require('express');
+const express = require("express");
 
-const notFoundHandler = (err, req, res, next) => {
-    const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
-    res.status(status).json({ status: status, message: message });
+const notFoundHandler = (req, res, next) => {
+  const error = new Error("Not found");
+  error.status = 404;
+  next(error);
 };
 
 module.exports = notFoundHandler;

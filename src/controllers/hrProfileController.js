@@ -1,4 +1,5 @@
-let hrProfileList = require('../models/hrProfileList.json');
+let hrProfileList = require("../models/hrProfileList.json");
+const { validationResult } = require("express-validator");
 
 let hrProfileIdCount = 1;
 
@@ -127,7 +128,7 @@ let hrProfileIdCount = 1;
  */
 
 /**
- * @swagger 
+ * @swagger
  * tags:
  *   name: HR Profile
  *   description: APIs for Managing HR Profiles
@@ -148,36 +149,40 @@ let hrProfileIdCount = 1;
  *         description: OK.
  */
 const getHrProfileList = async (req, res, next) => {
-    try {
-        let { skills } = req.query;
+  try {
+    let { skills } = req.query;
 
-        let filteredHrProfileList = hrProfileList.length > 0 ? [...hrProfileList] : [];
-        if (skills && hrProfileList.length > 0) {
-            skills = skills.toLowerCase();
-            filteredHrProfileList = filteredHrProfileList.filter(data => {
-                const skillsArray = data.skills ? JSON.parse(data.skills.toLowerCase()) : '';
-                if (skillsArray.includes(skills)) {
-                    return data;
-                }
-            });
+    let filteredHrProfileList =
+      hrProfileList.length > 0 ? [...hrProfileList] : [];
+    if (skills && hrProfileList.length > 0) {
+      skills = skills.toLowerCase();
+      filteredHrProfileList = filteredHrProfileList.filter((data) => {
+        const skillsArray = data.skills
+          ? JSON.parse(data.skills.toLowerCase())
+          : "";
+        if (skillsArray.includes(skills)) {
+          return data;
         }
-        const newList = filteredHrProfileList.map(data => {
-            const newData = { ...data };
-            newData.work_experience = data.work_experience ? JSON.parse(data.work_experience) : '';
-            newData.project = data.project ? JSON.parse(data.project) : '';
-            newData.education = data.education ? JSON.parse(data.education) : '';
-            newData.skills = data.skills ? JSON.parse(data.skills) : '';
-            return newData;
-        })
-        res.status(200).json({ hrProfileList: newList });
-    } catch (error) {
-        next(error);
+      });
     }
-}
-
+    const newList = filteredHrProfileList.map((data) => {
+      const newData = { ...data };
+      newData.work_experience = data.work_experience
+        ? JSON.parse(data.work_experience)
+        : "";
+      newData.project = data.project ? JSON.parse(data.project) : "";
+      newData.education = data.education ? JSON.parse(data.education) : "";
+      newData.skills = data.skills ? JSON.parse(data.skills) : "";
+      return newData;
+    });
+    res.status(200).json({ hrProfileList: newList });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * @swagger 
+ * @swagger
  * /hrprofile/photoupload:
  *   post:
  *     summary: Upload Profile Picture
@@ -205,42 +210,38 @@ const getHrProfileList = async (req, res, next) => {
  *     x-swagger-router-controller: "Default"
  */
 const hrProfilePhotoUpload = async (req, res, next) => {
-    try {
-
-        const file = req.file;
-        if (!file) {
-            res.status(400).send('Please select a photo to upload.');
-            return;
-        }
-
-        if (!req.body.id || req.body.id == '') {
-            return res.status(400).json({ message: 'Profile Id is required' });
-        }
-
-        if (hrProfileList.length > 0) {
-
-            let hrProfileData = hrProfileList.find(data => data.hr_profile_id == req.body.id);
-            if (hrProfileData && hrProfileData.hr_profile_id) {
-
-                hrProfileList = hrProfileList.map(data => {
-                    const newData = { ...data };
-                    if (data.hr_profile_id == req.body.id) {
-                        newData.photo_url = file.path ? file.path : '';
-                    }
-                    return newData;
-                })
-                return res.status(200).json({ message: 'Photo Uploaded Successfully' });
-            }
-        }
-        res.status(404).json({ message: 'Record not found' });
-    } catch (error) {
-        next(error);
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res
+        .status(400)
+        .json({ status: 400, message: errors.array()[0].msg });
     }
-}
 
+    if (hrProfileList.length > 0) {
+      const file = req.file;
+      let hrProfileData = hrProfileList.find(
+        (data) => data.hr_profile_id == req.body.id
+      );
+      if (hrProfileData && hrProfileData.hr_profile_id) {
+        hrProfileList = hrProfileList.map((data) => {
+          const newData = { ...data };
+          if (data.hr_profile_id == req.body.id) {
+            newData.photo_url = file.path ? file.path : "";
+          }
+          return newData;
+        });
+        return res.status(200).json({ message: "Photo Uploaded Successfully" });
+      }
+    }
+    res.status(404).json({ message: "Record not found" });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * @swagger 
+ * @swagger
  * /hrprofile/add:
  *   post:
  *     summary: Add New Profile
@@ -258,29 +259,29 @@ const hrProfilePhotoUpload = async (req, res, next) => {
  *               hr_profile_type_id: null
  *               first_name: Vignesh
  *               last_name: Vicky
- *               middle_name: 
+ *               middle_name:
  *               position: Junior Developer
  *               email_id: demouser@demo.com
  *               alternate_email_id: null
  *               mobile: 9874512300
- *               alternate_mobile: 
- *               phone: 
- *               office_phone: 
+ *               alternate_mobile:
+ *               phone:
+ *               office_phone:
  *               gender: M
- *               date_of_birth: 
+ *               date_of_birth:
  *               resume_url: null
- *               photo_url: 
+ *               photo_url:
  *               buiding_number: 18/21
  *               street_name: North Street
  *               city: Chennai
  *               state: Tamil Nadu
  *               country: India
- *               postal_code: 
+ *               postal_code:
  *               website: http://test.com
- *               facebook_id: 
- *               twitter_id: 
- *               linkedin_id: 
- *               skype_id: 
+ *               facebook_id:
+ *               twitter_id:
+ *               linkedin_id:
+ *               skype_id:
  *               status_id: 1
  *               user_id: 1
  *               active: true
@@ -316,35 +317,42 @@ const hrProfilePhotoUpload = async (req, res, next) => {
  *         description: Created.
  */
 const hrProfileAdd = async (req, res, next) => {
-    try {
-        if (!req.body.email_id || req.body.email_id == '') {
-            return res.status(400).json({ message: 'Email Id is required' });
-        }
-
-        const work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : '';
-        const project = req.body.project ? JSON.stringify(req.body.project) : '';
-        const education = req.body.education ? JSON.stringify(req.body.education) : '';
-        const skills = req.body.skills ? JSON.stringify(req.body.skills) : '';
-        hrProfileIdCount++;
-
-        let hrProfile = {
-            ...req.body,
-            hr_profile_id: hrProfileIdCount,
-            ...{ work_experience },
-            ...{ project },
-            ...{ education },
-            ...{ skills },
-        };
-        hrProfileList.push(hrProfile);
-
-        res.status(201).json({ message: 'Profile Added Successfully' });
-    } catch (error) {
-        next(error);
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res
+        .status(400)
+        .json({ status: 400, message: errors.array()[0].msg });
     }
-}
+
+    const work_experience = req.body.work_experience
+      ? JSON.stringify(req.body.work_experience)
+      : "";
+    const project = req.body.project ? JSON.stringify(req.body.project) : "";
+    const education = req.body.education
+      ? JSON.stringify(req.body.education)
+      : "";
+    const skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+    hrProfileIdCount++;
+
+    let hrProfile = {
+      ...req.body,
+      hr_profile_id: hrProfileIdCount,
+      ...{ work_experience },
+      ...{ project },
+      ...{ education },
+      ...{ skills },
+    };
+    hrProfileList.push(hrProfile);
+
+    res.status(201).json({ message: "Profile Added Successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * @swagger 
+ * @swagger
  * /hrprofile/update:
  *   put:
  *     summary: Update Profile
@@ -362,29 +370,29 @@ const hrProfileAdd = async (req, res, next) => {
  *               hr_profile_type_id: null
  *               first_name: Vignesh
  *               last_name: Vicky
- *               middle_name: 
+ *               middle_name:
  *               position: Junior Developer
  *               email_id: demouser@demo.com
  *               alternate_email_id: null
  *               mobile: 9874512300
- *               alternate_mobile: 
- *               phone: 
- *               office_phone: 
+ *               alternate_mobile:
+ *               phone:
+ *               office_phone:
  *               gender: M
- *               date_of_birth: 
+ *               date_of_birth:
  *               resume_url: null
- *               photo_url: 
+ *               photo_url:
  *               buiding_number: 18/21
  *               street_name: North Street
  *               city: Chennai
  *               state: Tamil Nadu
  *               country: India
- *               postal_code: 
+ *               postal_code:
  *               website: http://test.com
- *               facebook_id: 
- *               twitter_id: 
- *               linkedin_id: 
- *               skype_id: 
+ *               facebook_id:
+ *               twitter_id:
+ *               linkedin_id:
+ *               skype_id:
  *               status_id: 1
  *               user_id: 1
  *               active: true
@@ -420,37 +428,46 @@ const hrProfileAdd = async (req, res, next) => {
  *         description: OK.
  */
 const hrProfileUpdate = async (req, res, next) => {
-    try {
+  try {
+    if (hrProfileList.length > 0) {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ status: 400, message: errors.array()[0].msg });
+      }
 
-        if (hrProfileList.length > 0 && req.body.hr_profile_id) {
-            if (!req.body.email_id || req.body.email_id == '') {
-                return res.status(400).json({ message: 'Email Id is required' });
-            }
-
-            let hrProfileData = hrProfileList.find(data => data.hr_profile_id == req.body.hr_profile_id);
-            if (hrProfileData && hrProfileData.hr_profile_id) {
-                hrProfileList = hrProfileList.map(data => {
-                    if (data.hr_profile_id == req.body.hr_profile_id) {
-                        data = req.body;
-                        data.work_experience = data.work_experience ? JSON.stringify(data.work_experience) : '';
-                        data.project = data.project ? JSON.stringify(data.project) : '';
-                        data.education = data.education ? JSON.stringify(data.education) : '';
-                        data.skills = data.skills ? JSON.stringify(data.skills) : '';
-                    }
-                    return data;
-                })
-                return res.status(200).json({ message: 'Profile Updated Successfully' });
-            }
-        }
-        res.status(404).json({ message: 'Record not found' });
-    } catch (error) {
-        next(error);
+      let hrProfileData = hrProfileList.find(
+        (data) => data.hr_profile_id == req.body.hr_profile_id
+      );
+      if (hrProfileData && hrProfileData.hr_profile_id) {
+        hrProfileList = hrProfileList.map((data) => {
+          if (data.hr_profile_id == req.body.hr_profile_id) {
+            data = req.body;
+            data.work_experience = data.work_experience
+              ? JSON.stringify(data.work_experience)
+              : "";
+            data.project = data.project ? JSON.stringify(data.project) : "";
+            data.education = data.education
+              ? JSON.stringify(data.education)
+              : "";
+            data.skills = data.skills ? JSON.stringify(data.skills) : "";
+          }
+          return data;
+        });
+        return res
+          .status(200)
+          .json({ message: "Profile Updated Successfully" });
+      }
     }
-}
-
+    res.status(404).json({ message: "Record not found" });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * @swagger 
+ * @swagger
  * /hrprofile/view/{id}:
  *   get:
  *     summary: View Profile
@@ -468,28 +485,36 @@ const hrProfileUpdate = async (req, res, next) => {
  *         description: OK.
  */
 const hrProfileView = async (req, res, next) => {
-    try {
-        let hrProfileId = req.params.id;
-        if (hrProfileList.length > 0 && hrProfileId) {
-            const hrProfileData = hrProfileList.find(data => data.hr_profile_id == hrProfileId);
-            if (hrProfileData && hrProfileData.hr_profile_id) {
-                const hrProfile = { ...hrProfileData };
-                hrProfile.work_experience = hrProfile.work_experience ? JSON.parse(hrProfile.work_experience) : '';
-                hrProfile.project = hrProfile.project ? JSON.parse(hrProfile.project) : '';
-                hrProfile.education = hrProfile.education ? JSON.parse(hrProfile.education) : '';
-                hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : '';
+  try {
+    let hrProfileId = req.params.id;
+    if (hrProfileList.length > 0 && hrProfileId) {
+      const hrProfileData = hrProfileList.find(
+        (data) => data.hr_profile_id == hrProfileId
+      );
+      if (hrProfileData && hrProfileData.hr_profile_id) {
+        const hrProfile = { ...hrProfileData };
+        hrProfile.work_experience = hrProfile.work_experience
+          ? JSON.parse(hrProfile.work_experience)
+          : "";
+        hrProfile.project = hrProfile.project
+          ? JSON.parse(hrProfile.project)
+          : "";
+        hrProfile.education = hrProfile.education
+          ? JSON.parse(hrProfile.education)
+          : "";
+        hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : "";
 
-                return res.status(200).json({ hrProfile });
-            }
-        }
-        res.status(404).json({ message: 'Record not found' });
-    } catch (error) {
-        next(error);
+        return res.status(200).json({ hrProfile });
+      }
     }
-}
+    res.status(404).json({ message: "Record not found" });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * @swagger 
+ * @swagger
  * /hrprofile/delete/{id}:
  *   delete:
  *     summary: Delete Profile
@@ -507,26 +532,32 @@ const hrProfileView = async (req, res, next) => {
  *         description: OK.
  */
 const hrProfileDelete = async (req, res, next) => {
-    try {
-        let hrProfileId = req.params.id;
-        if (hrProfileList.length > 0 && hrProfileId) {
-            let hrProfileData = hrProfileList.find(data => data.hr_profile_id == hrProfileId);
-            if (hrProfileData && hrProfileData.hr_profile_id) {
-                hrProfileList = hrProfileList.filter(data => data.hr_profile_id != hrProfileId);
-                return res.status(200).json({ message: 'Profile Deleted Successfully' });
-            }
-        }
-        res.status(404).json({ message: 'Record not found' });
-    } catch (error) {
-        next(error);
+  try {
+    let hrProfileId = req.params.id;
+    if (hrProfileList.length > 0 && hrProfileId) {
+      let hrProfileData = hrProfileList.find(
+        (data) => data.hr_profile_id == hrProfileId
+      );
+      if (hrProfileData && hrProfileData.hr_profile_id) {
+        hrProfileList = hrProfileList.filter(
+          (data) => data.hr_profile_id != hrProfileId
+        );
+        return res
+          .status(200)
+          .json({ message: "Profile Deleted Successfully" });
+      }
     }
-}
+    res.status(404).json({ message: "Record not found" });
+  } catch (error) {
+    next(error);
+  }
+};
 
 module.exports = {
-    getHrProfileList,
-    hrProfilePhotoUpload,
-    hrProfileAdd,
-    hrProfileUpdate,
-    hrProfileView,
-    hrProfileDelete,
-}
+  getHrProfileList,
+  hrProfilePhotoUpload,
+  hrProfileAdd,
+  hrProfileUpdate,
+  hrProfileView,
+  hrProfileDelete,
+};
