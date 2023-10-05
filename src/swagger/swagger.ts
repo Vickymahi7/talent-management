@@ -23,9 +23,9 @@ const options = {
       },
     },
   },
-  apis: ["./src/controllers/userController.js", "./src/controllers/*.js"],
+  apis: ["./src/controllers/userController.ts", "./src/controllers/*.ts"],
 };
 
 const specs = swaggerJsdoc(options);
 
-module.exports = specs;
+export default specs;

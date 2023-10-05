@@ -1,9 +1,24 @@
-let hrProfileList = require("../models/hrProfileList.json");
-const { validationResult } = require("express-validator");
-const responseCodes = require('../constants/httpResponseCodes.js')
-
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.hrProfileView = exports.hrProfileUpdate = exports.hrProfilePhotoUpload = exports.hrProfileDelete = exports.hrProfileAdd = exports.getHrProfileList = void 0;
+const HttpStatusCode_1 = __importDefault(require("../constants/HttpStatusCode"));
+const errors_1 = require("../utils/errors");
+const hrProfileList_json_1 = __importDefault(require("../models/hrProfileList.json"));
+const validations_1 = require("../validations/validations");
+let hrProfileList = hrProfileList_json_1.default;
 let hrProfileIdCount = 1;
-
 /**
  * @swagger
  * components:
@@ -127,7 +142,6 @@ let hrProfileIdCount = 1;
  *             end_date:
  *               type: string
  */
-
 /**
  * @swagger
  * tags:
@@ -149,30 +163,23 @@ let hrProfileIdCount = 1;
  *       200:
  *         description: OK.
  */
-const getHrProfileList = async (req, res, next) => {
-  try {
-    let { skills } = req.query;
-    skills = skills ? skills.toLowerCase() : '';
-
-    const newList = hrProfileList
-      .filter((data) => {
-        const existingSkills = data.skills ? JSON.parse(data.skills.toLowerCase()) : [];
-        return !skills || existingSkills.includes(skills);
-      })
-      .map((data) => ({
-        ...data,
-        work_experience: data.work_experience ? JSON.parse(data.work_experience) : [],
-        project: data.project ? JSON.parse(data.project) : [],
-        education: data.education ? JSON.parse(data.education) : [],
-        skills: data.skills ? JSON.parse(data.skills) : []
-      }));
-
-    res.status(responseCodes.OK).json({ hrProfileList: newList });
-  } catch (error) {
-    next(error);
-  }
-};
-
+const getHrProfileList = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        let { skills } = req.query;
+        skills = skills ? skills[0].toLowerCase() : '';
+        const newList = hrProfileList
+            .filter((data) => {
+            const existingSkills = data.skills ? JSON.parse(data.skills.toLowerCase()) : [];
+            return !skills || existingSkills.includes(skills);
+        })
+            .map((data) => (Object.assign(Object.assign({}, data), { work_experience: data.work_experience ? JSON.parse(data.work_experience) : [], project: data.project ? JSON.parse(data.project) : [], education: data.education ? JSON.parse(data.education) : [], skills: data.skills ? JSON.parse(data.skills) : [] })));
+        res.status(HttpStatusCode_1.default.OK).json({ hrProfileList: newList });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.getHrProfileList = getHrProfileList;
 /**
  * @swagger
  * /hrprofile/photoupload:
@@ -201,37 +208,25 @@ const getHrProfileList = async (req, res, next) => {
  *         description: Ok.
  *     x-swagger-router-controller: "Default"
  */
-const hrProfilePhotoUpload = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res
-        .status(responseCodes.BAD_REQUEST)
-        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
+const hrProfilePhotoUpload = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        (0, validations_1.validatePhotoUpload)(req);
+        const file = req.file;
+        const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == req.body.id);
+        if (hrProfileIndex !== -1) {
+            const filePath = file ? file.path : "";
+            hrProfileList[hrProfileIndex] = Object.assign(Object.assign({}, hrProfileList[hrProfileIndex]), { photo_url: filePath });
+            res.status(HttpStatusCode_1.default.OK).json({ message: "Photo Uploaded Successfully" });
+        }
+        else {
+            throw new errors_1.HttpNotFound("Record Not Found");
+        }
     }
-
-    if (hrProfileList.length > 0) {
-      const file = req.file;
-      let hrProfileData = hrProfileList.find(
-        (data) => data.hr_profile_id == req.body.id
-      );
-      if (hrProfileData && hrProfileData.hr_profile_id) {
-        hrProfileList = hrProfileList.map((data) => {
-          const newData = { ...data };
-          if (data.hr_profile_id == req.body.id) {
-            newData.photo_url = file.path ? file.path : "";
-          }
-          return newData;
-        });
-        return res.status(responseCodes.OK).json({ message: "Photo Uploaded Successfully" });
-      }
+    catch (error) {
+        next(error);
     }
-    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
-  } catch (error) {
-    next(error);
-  }
-};
-
+});
+exports.hrProfilePhotoUpload = hrProfilePhotoUpload;
 /**
  * @swagger
  * /hrprofile/add:
@@ -308,41 +303,23 @@ const hrProfilePhotoUpload = async (req, res, next) => {
  *       201:
  *         description: Created.
  */
-const hrProfileAdd = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res
-        .status(responseCodes.BAD_REQUEST)
-        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
+const hrProfileAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        (0, validations_1.validateAddHrProfileInput)(req);
+        const work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
+        const project = req.body.project ? JSON.stringify(req.body.project) : "";
+        const education = req.body.education ? JSON.stringify(req.body.education) : "";
+        const skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+        hrProfileIdCount++;
+        const hrProfile = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, req.body), { hr_profile_id: hrProfileIdCount }), { work_experience }), { project }), { education }), { skills });
+        hrProfileList.push(hrProfile);
+        res.status(HttpStatusCode_1.default.CREATED).json({ message: "Profile Added Successfully" });
     }
-
-    const work_experience = req.body.work_experience
-      ? JSON.stringify(req.body.work_experience)
-      : "";
-    const project = req.body.project ? JSON.stringify(req.body.project) : "";
-    const education = req.body.education
-      ? JSON.stringify(req.body.education)
-      : "";
-    const skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
-    hrProfileIdCount++;
-
-    let hrProfile = {
-      ...req.body,
-      hr_profile_id: hrProfileIdCount,
-      ...{ work_experience },
-      ...{ project },
-      ...{ education },
-      ...{ skills },
-    };
-    hrProfileList.push(hrProfile);
-
-    res.status(responseCodes.CREATED).json({ message: "Profile Added Successfully" });
-  } catch (error) {
-    next(error);
-  }
-};
-
+    catch (error) {
+        next(error);
+    }
+});
+exports.hrProfileAdd = hrProfileAdd;
 /**
  * @swagger
  * /hrprofile/update:
@@ -419,45 +396,27 @@ const hrProfileAdd = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const hrProfileUpdate = async (req, res, next) => {
-  try {
-    if (hrProfileList.length > 0) {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res
-          .status(responseCodes.BAD_REQUEST)
-          .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
-      }
-
-      let hrProfileData = hrProfileList.find(
-        (data) => data.hr_profile_id == req.body.hr_profile_id
-      );
-      if (hrProfileData && hrProfileData.hr_profile_id) {
-        hrProfileList = hrProfileList.map((data) => {
-          if (data.hr_profile_id == req.body.hr_profile_id) {
-            data = req.body;
-            data.work_experience = data.work_experience
-              ? JSON.stringify(data.work_experience)
-              : "";
-            data.project = data.project ? JSON.stringify(data.project) : "";
-            data.education = data.education
-              ? JSON.stringify(data.education)
-              : "";
-            data.skills = data.skills ? JSON.stringify(data.skills) : "";
-          }
-          return data;
-        });
-        return res
-          .status(responseCodes.OK)
-          .json({ message: "Profile Updated Successfully" });
-      }
+const hrProfileUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        (0, validations_1.validateUpdateHrProfileInput)(req);
+        const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == req.body.id);
+        if (hrProfileIndex !== -1) {
+            const work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
+            const project = req.body.project ? JSON.stringify(req.body.project) : "";
+            const education = req.body.education ? JSON.stringify(req.body.education) : "";
+            const skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+            hrProfileList[hrProfileIndex] = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, hrProfileList[hrProfileIndex]), { work_experience }), { project }), { education }), { skills });
+            res.status(HttpStatusCode_1.default.OK).json({ message: "Profile Updated Successfully" });
+        }
+        else {
+            throw new errors_1.HttpNotFound("Record Not Found");
+        }
     }
-    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
-  } catch (error) {
-    next(error);
-  }
-};
-
+    catch (error) {
+        next(error);
+    }
+});
+exports.hrProfileUpdate = hrProfileUpdate;
 /**
  * @swagger
  * /hrprofile/view/{id}:
@@ -476,35 +435,30 @@ const hrProfileUpdate = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const hrProfileView = async (req, res, next) => {
-  try {
-    let hrProfileId = req.params.id;
-    if (hrProfileList.length > 0 && hrProfileId) {
-      const hrProfileData = hrProfileList.find(
-        (data) => data.hr_profile_id == hrProfileId
-      );
-      if (hrProfileData && hrProfileData.hr_profile_id) {
-        const hrProfile = { ...hrProfileData };
-        hrProfile.work_experience = hrProfile.work_experience
-          ? JSON.parse(hrProfile.work_experience)
-          : "";
-        hrProfile.project = hrProfile.project
-          ? JSON.parse(hrProfile.project)
-          : "";
-        hrProfile.education = hrProfile.education
-          ? JSON.parse(hrProfile.education)
-          : "";
-        hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : "";
-
-        return res.status(responseCodes.OK).json({ hrProfile });
-      }
+const hrProfileView = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        let hrProfileId = req.params.id;
+        if (!hrProfileId) {
+            throw new errors_1.HttpBadRequest("Profile Id is required");
+        }
+        const hrProfileData = hrProfileList.find((data) => data.hr_profile_id == hrProfileId);
+        if (hrProfileData) {
+            const hrProfile = Object.assign({}, hrProfileData);
+            hrProfile.work_experience = hrProfile.work_experience ? JSON.parse(hrProfile.work_experience) : [];
+            hrProfile.project = hrProfile.project ? JSON.parse(hrProfile.project) : [];
+            hrProfile.education = hrProfile.education ? JSON.parse(hrProfile.education) : [];
+            hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : [];
+            return res.status(HttpStatusCode_1.default.OK).json({ hrProfile });
+        }
+        else {
+            throw new errors_1.HttpNotFound("Record Not Found");
+        }
     }
-    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
-  } catch (error) {
-    next(error);
-  }
-};
-
+    catch (error) {
+        next(error);
+    }
+});
+exports.hrProfileView = hrProfileView;
 /**
  * @swagger
  * /hrprofile/delete/{id}:
@@ -523,33 +477,23 @@ const hrProfileView = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const hrProfileDelete = async (req, res, next) => {
-  try {
-    let hrProfileId = req.params.id;
-    if (hrProfileList.length > 0 && hrProfileId) {
-      let hrProfileData = hrProfileList.find(
-        (data) => data.hr_profile_id == hrProfileId
-      );
-      if (hrProfileData && hrProfileData.hr_profile_id) {
-        hrProfileList = hrProfileList.filter(
-          (data) => data.hr_profile_id != hrProfileId
-        );
-        return res
-          .status(responseCodes.OK)
-          .json({ message: "Profile Deleted Successfully" });
-      }
+const hrProfileDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        let hrProfileId = req.params.id;
+        if (!hrProfileId) {
+            throw new errors_1.HttpBadRequest("Profile Id is required");
+        }
+        const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == hrProfileId);
+        if (hrProfileIndex !== -1) {
+            hrProfileList.splice(hrProfileIndex, 1);
+            res.status(HttpStatusCode_1.default.OK).json({ message: "Profile Deleted Successfully" });
+        }
+        else {
+            throw new errors_1.HttpNotFound("Record Not Found");
+        }
     }
-    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
-  } catch (error) {
-    next(error);
-  }
-};
-
-module.exports = {
-  getHrProfileList,
-  hrProfilePhotoUpload,
-  hrProfileAdd,
-  hrProfileUpdate,
-  hrProfileView,
-  hrProfileDelete,
-};
+    catch (error) {
+        next(error);
+    }
+});
+exports.hrProfileDelete = hrProfileDelete;

@@ -1,11 +1,14 @@
-const PORT = process.env.PORT || 3000;
-const express = require("express");
-const app = express();
-const cors = require("cors");
+const PORT: number | string = process.env.PORT || 3000;
+import cors from 'cors';
+import express, { Application } from 'express';
+const app: Application = express();
+import { config } from 'dotenv';
 
-const routeHandler = require("./src/routes/routeHandler");
-const errorHandler = require("./src/middlewares/errorHandlerMiddleware");
-const notFoundHandler = require("./src/middlewares/notFoundHandlerMiddleware");
+import routeHandler from './src/routes/routeHandler';
+import errorHandler from './src/middlewares/errorHandlerMiddleware';
+import notFoundHandler from './src/middlewares/notFoundHandlerMiddleware';
+config();
+
 
 app.use(cors());
 app.use(express.json());

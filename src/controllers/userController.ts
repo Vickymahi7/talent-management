@@ -1,9 +1,15 @@
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
-const responseCodes = require('../constants/httpResponseCodes.js');
-const { validationResult } = require("express-validator");
-let userList = require("../models/userList.json");
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+import HttpStatusCode from '../constants/HttpStatusCode';
+import { HttpConflict, HttpBadRequest, HttpNotFound } from '../utils/errors';
+import * as validations from '../validations/validations';
+import userListData from '../models/userList.json';
+import { config } from 'dotenv';
+
+config();
+
+let userList: any[] = userListData;
 let userIdCount = 1;
 
 /**
@@ -43,33 +49,30 @@ let userIdCount = 1;
  *                 accessToken:
  *                   type: string
  */
-const userLogin = async (req, res, next) => {
+const userLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res
-        .status(responseCodes.BAD_REQUEST)
-        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
-    } else {
-      if (userList.length > 0 && req.body.email_id) {
-        let userData = userList.find((data) => data.email_id == req.body.email_id);
-        if (userData && userData.email_id) {
-          const isPaswordMatched = await bcrypt.compare(
-            req.body.password,
-            userData.password
+    const { email_id, password } = req.body;
+    validations.validateLoginInput(req);
+
+    if (userList.length > 0 && email_id) {
+      let userData = userList.find((data) => data.email_id == email_id);
+      if (userData && userData.email_id) {
+        const isPaswordMatched = await bcrypt.compare(
+          password,
+          userData.password
+        );
+        if (isPaswordMatched) {
+          const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!
+          const accessToken = jwt.sign(
+            { user_id: userData.user_id },
+            accessTokenSecret,
+            { expiresIn: 60 * 30 }
           );
-          if (isPaswordMatched) {
-            const accessToken = jwt.sign(
-              { user_id: userData.user_id },
-              process.env.ACCESS_TOKEN_SECRET,
-              { expiresIn: 60 * 30 }
-            );
-            return res.status(responseCodes.OK).json({ accessToken: accessToken });
-          }
+          return res.status(HttpStatusCode.OK).json({ accessToken: accessToken });
         }
       }
-      res.status(responseCodes.UNAUTHORIZED).json({ message: "Incorrect Email ID / Password" });
     }
+    res.status(HttpStatusCode.UNAUTHORIZED).json({ message: "Invalid Credentials" });
   } catch (error) {
     next(error);
   }
@@ -124,13 +127,12 @@ const userLogin = async (req, res, next) => {
  *       201:
  *         description: Created.
  */
-const userAdd = async (req, res, next) => {
+const userAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res
-        .status(responseCodes.BAD_REQUEST)
-        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
+    validations.validateAddUserInput(req);
+    const isUserExists = userList.some((item) => item.email_id === req.body.email_id);
+    if (isUserExists) {
+      throw new HttpConflict("User already exists for this email");
     } else {
       userIdCount++;
       const salt = await bcrypt.genSalt();
@@ -142,7 +144,7 @@ const userAdd = async (req, res, next) => {
       };
       userList.push(user);
 
-      res.status(responseCodes.CREATED).json({ message: "User Created Successfully" });
+      res.status(HttpStatusCode.CREATED).json({ message: "User Created Successfully" });
     }
   } catch (error) {
     next(error);
@@ -161,9 +163,9 @@ const userAdd = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const getUserList = async (req, res, next) => {
+const getUserList = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.status(responseCodes.OK).json({ userList });
+    res.status(HttpStatusCode.OK).json({ userList });
   } catch (error) {
     next(error);
   }
@@ -222,26 +224,20 @@ const getUserList = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const userUpdate = async (req, res, next) => {
+const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { password, ...rest } = req.body;
-    let user = rest;
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res
-        .status(responseCodes.BAD_REQUEST)
-        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
-    } else {
-      let userData = userList.find((data) => data.user_id == user.user_id);
-      if (userData && userData.user_id) {
-        userList = userList.map((data) => {
-          if (data.user_id == user.user_id) {
-            data = { ...data, ...user };
-          }
-          return data;
-        });
-        return res.status(responseCodes.OK).json({ message: "User Updated Successfully" });
-      }
+    validations.validateUpdateUserInput(req);
+    const { password, ...userData } = req.body;
+
+    const userIndex = userList.findIndex((data) => data.user_id == req.body.user_id);
+
+    if (userIndex !== -1) {
+      userList[userIndex] = { ...userList[userIndex], ...userData };
+
+      res.status(HttpStatusCode.OK).json({ message: "User Updated Successfully" });
+    }
+    else {
+      throw new HttpNotFound("User Not Found");
     }
   } catch (error) {
     next(error);
@@ -266,16 +262,21 @@ const userUpdate = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const userView = async (req, res, next) => {
+const userView = async (req: Request, res: Response, next: NextFunction) => {
   try {
     let userId = req.params.id;
-    if (userList.length > 0 && userId) {
+    if (!userId) {
+      throw new HttpBadRequest("User Id is required");
+    }
+    else {
       const user = userList.find((data) => data.user_id == userId);
-      if (user && user.user_id) {
-        return res.status(responseCodes.OK).json({ user });
+      if (user) {
+        res.status(HttpStatusCode.OK).json({ user });
+      }
+      else {
+        throw new HttpBadRequest("User not found");
       }
     }
-    res.status(responseCodes.NOT_FOUND).json({ message: "User not found" });
   } catch (error) {
     next(error);
   }
@@ -299,23 +300,29 @@ const userView = async (req, res, next) => {
  *       200:
  *         description: OK.
  */
-const userDelete = async (req, res, next) => {
-  let userId = req.params.id;
+const userDelete = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (userList.length > 0 && userId) {
-      let userData = userList.find((data) => data.user_id == userId);
-      if (userData && userData.user_id) {
-        userList = userList.filter((data) => data.user_id != userId);
-        return res.status(responseCodes.OK).json({ message: "User Deleted Successfully" });
+    let userId = req.params.id;
+    if (!userId) {
+      throw new HttpBadRequest("User Id is required");
+    }
+    else {
+      const userIndex = userList.findIndex((data) => data.user_id == userId);
+      if (userIndex !== -1) {
+        userList.splice(userIndex, 1);
+
+        res.status(HttpStatusCode.OK).json({ message: "User Deleted Successfully" });
+      }
+      else {
+        throw new HttpBadRequest("User not found");
       }
     }
-    res.status(responseCodes.NOT_FOUND).json({ message: "User not found" });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
+export {
   getUserList,
   userLogin,
   userAdd,
