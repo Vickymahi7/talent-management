@@ -1,5 +1,6 @@
 let hrProfileList = require("../models/hrProfileList.json");
 const { validationResult } = require("express-validator");
+const responseCodes = require('../constants/httpResponseCodes.js')
 
 let hrProfileIdCount = 1;
 
@@ -151,31 +152,22 @@ let hrProfileIdCount = 1;
 const getHrProfileList = async (req, res, next) => {
   try {
     let { skills } = req.query;
+    skills = skills ? skills.toLowerCase() : '';
 
-    let filteredHrProfileList =
-      hrProfileList.length > 0 ? [...hrProfileList] : [];
-    if (skills && hrProfileList.length > 0) {
-      skills = skills.toLowerCase();
-      filteredHrProfileList = filteredHrProfileList.filter((data) => {
-        const skillsArray = data.skills
-          ? JSON.parse(data.skills.toLowerCase())
-          : "";
-        if (skillsArray.includes(skills)) {
-          return data;
-        }
-      });
-    }
-    const newList = filteredHrProfileList.map((data) => {
-      const newData = { ...data };
-      newData.work_experience = data.work_experience
-        ? JSON.parse(data.work_experience)
-        : "";
-      newData.project = data.project ? JSON.parse(data.project) : "";
-      newData.education = data.education ? JSON.parse(data.education) : "";
-      newData.skills = data.skills ? JSON.parse(data.skills) : "";
-      return newData;
-    });
-    res.status(200).json({ hrProfileList: newList });
+    const newList = hrProfileList
+      .filter((data) => {
+        const existingSkills = data.skills ? JSON.parse(data.skills.toLowerCase()) : [];
+        return !skills || existingSkills.includes(skills);
+      })
+      .map((data) => ({
+        ...data,
+        work_experience: data.work_experience ? JSON.parse(data.work_experience) : [],
+        project: data.project ? JSON.parse(data.project) : [],
+        education: data.education ? JSON.parse(data.education) : [],
+        skills: data.skills ? JSON.parse(data.skills) : []
+      }));
+
+    res.status(responseCodes.OK).json({ hrProfileList: newList });
   } catch (error) {
     next(error);
   }
@@ -214,8 +206,8 @@ const hrProfilePhotoUpload = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res
-        .status(400)
-        .json({ status: 400, message: errors.array()[0].msg });
+        .status(responseCodes.BAD_REQUEST)
+        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
     }
 
     if (hrProfileList.length > 0) {
@@ -231,10 +223,10 @@ const hrProfilePhotoUpload = async (req, res, next) => {
           }
           return newData;
         });
-        return res.status(200).json({ message: "Photo Uploaded Successfully" });
+        return res.status(responseCodes.OK).json({ message: "Photo Uploaded Successfully" });
       }
     }
-    res.status(404).json({ message: "Record not found" });
+    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
   } catch (error) {
     next(error);
   }
@@ -321,8 +313,8 @@ const hrProfileAdd = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res
-        .status(400)
-        .json({ status: 400, message: errors.array()[0].msg });
+        .status(responseCodes.BAD_REQUEST)
+        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
     }
 
     const work_experience = req.body.work_experience
@@ -345,7 +337,7 @@ const hrProfileAdd = async (req, res, next) => {
     };
     hrProfileList.push(hrProfile);
 
-    res.status(201).json({ message: "Profile Added Successfully" });
+    res.status(responseCodes.CREATED).json({ message: "Profile Added Successfully" });
   } catch (error) {
     next(error);
   }
@@ -433,8 +425,8 @@ const hrProfileUpdate = async (req, res, next) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res
-          .status(400)
-          .json({ status: 400, message: errors.array()[0].msg });
+          .status(responseCodes.BAD_REQUEST)
+          .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
       }
 
       let hrProfileData = hrProfileList.find(
@@ -456,11 +448,11 @@ const hrProfileUpdate = async (req, res, next) => {
           return data;
         });
         return res
-          .status(200)
+          .status(responseCodes.OK)
           .json({ message: "Profile Updated Successfully" });
       }
     }
-    res.status(404).json({ message: "Record not found" });
+    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
   } catch (error) {
     next(error);
   }
@@ -504,10 +496,10 @@ const hrProfileView = async (req, res, next) => {
           : "";
         hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : "";
 
-        return res.status(200).json({ hrProfile });
+        return res.status(responseCodes.OK).json({ hrProfile });
       }
     }
-    res.status(404).json({ message: "Record not found" });
+    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
   } catch (error) {
     next(error);
   }
@@ -543,11 +535,11 @@ const hrProfileDelete = async (req, res, next) => {
           (data) => data.hr_profile_id != hrProfileId
         );
         return res
-          .status(200)
+          .status(responseCodes.OK)
           .json({ message: "Profile Deleted Successfully" });
       }
     }
-    res.status(404).json({ message: "Record not found" });
+    res.status(responseCodes.NOT_FOUND).json({ message: "Record not found" });
   } catch (error) {
     next(error);
   }

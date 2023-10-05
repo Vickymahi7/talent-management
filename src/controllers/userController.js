@@ -1,7 +1,9 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const responseCodes = require('../constants/httpResponseCodes.js');
 const { validationResult } = require("express-validator");
+const { check } = require("express-validator");
 let userList = require("../models/userList.json");
 let userIdCount = 1;
 
@@ -44,12 +46,14 @@ let userIdCount = 1;
  */
 const userLogin = async (req, res, next) => {
   try {
+    check('email_id', 'Email ID is required').notEmpty();
+
     let user = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res
-        .status(400)
-        .json({ status: 400, message: errors.array()[0].msg });
+        .status(responseCodes.BAD_REQUEST)
+        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
     } else {
       if (userList.length > 0 && user.email_id) {
         let userData = userList.find((data) => data.email_id == user.email_id);
@@ -64,11 +68,11 @@ const userLogin = async (req, res, next) => {
               process.env.ACCESS_TOKEN_SECRET,
               { expiresIn: 60 * 30 }
             );
-            return res.status(200).json({ accessToken: accessToken });
+            return res.status(responseCodes.OK).json({ accessToken: accessToken });
           }
         }
       }
-      res.status(401).json({ message: "Incorrect Email ID / Password" });
+      res.status(responseCodes.UNAUTHORIZED).json({ message: "Incorrect Email ID / Password" });
     }
   } catch (error) {
     next(error);
@@ -129,8 +133,8 @@ const userAdd = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res
-        .status(400)
-        .json({ status: 400, message: errors.array()[0].msg });
+        .status(responseCodes.BAD_REQUEST)
+        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
     } else {
       userIdCount++;
       const salt = await bcrypt.genSalt();
@@ -142,7 +146,7 @@ const userAdd = async (req, res, next) => {
       };
       userList.push(user);
 
-      res.status(201).json({ message: "User Created Successfully" });
+      res.status(responseCodes.CREATED).json({ message: "User Created Successfully" });
     }
   } catch (error) {
     next(error);
@@ -163,7 +167,7 @@ const userAdd = async (req, res, next) => {
  */
 const getUserList = async (req, res, next) => {
   try {
-    res.status(200).json({ userList });
+    res.status(responseCodes.OK).json({ userList });
   } catch (error) {
     next(error);
   }
@@ -229,8 +233,8 @@ const userUpdate = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res
-        .status(400)
-        .json({ status: 400, message: errors.array()[0].msg });
+        .status(responseCodes.BAD_REQUEST)
+        .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
     } else {
       let userData = userList.find((data) => data.user_id == user.user_id);
       if (userData && userData.user_id) {
@@ -240,7 +244,7 @@ const userUpdate = async (req, res, next) => {
           }
           return data;
         });
-        return res.status(200).json({ message: "User Updated Successfully" });
+        return res.status(responseCodes.OK).json({ message: "User Updated Successfully" });
       }
     }
   } catch (error) {
@@ -272,10 +276,10 @@ const userView = async (req, res, next) => {
     if (userList.length > 0 && userId) {
       const user = userList.find((data) => data.user_id == userId);
       if (user && user.user_id) {
-        return res.status(200).json({ user });
+        return res.status(responseCodes.OK).json({ user });
       }
     }
-    res.status(404).json({ message: "User not found" });
+    res.status(responseCodes.NOT_FOUND).json({ message: "User not found" });
   } catch (error) {
     next(error);
   }
@@ -306,10 +310,10 @@ const userDelete = async (req, res, next) => {
       let userData = userList.find((data) => data.user_id == userId);
       if (userData && userData.user_id) {
         userList = userList.filter((data) => data.user_id != userId);
-        return res.status(200).json({ message: "User Deleted Successfully" });
+        return res.status(responseCodes.OK).json({ message: "User Deleted Successfully" });
       }
     }
-    res.status(404).json({ message: "User not found" });
+    res.status(responseCodes.NOT_FOUND).json({ message: "User not found" });
   } catch (error) {
     next(error);
   }

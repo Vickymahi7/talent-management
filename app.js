@@ -11,8 +11,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/", (req, res, next) => {
+  res.send("Welcome To Talent Management API");
+});
+
 // Routes
-app.use("/", routeHandler);
+app.use("/api/v1", routeHandler);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
