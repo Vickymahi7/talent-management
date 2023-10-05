@@ -14,7 +14,7 @@ const hrProfileController = require("../controllers/hrProfileController");
 router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
 
 // Login Routes
-router.post("/login", userController.userLogin);
+router.post("/login", validations.userLoginValidation, userController.userLogin);
 router.post("/signup", validations.userAddValidation, userController.userAdd);
 
 router.use(checkUserAuth);

@@ -3,7 +3,6 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const responseCodes = require('../constants/httpResponseCodes.js');
 const { validationResult } = require("express-validator");
-const { check } = require("express-validator");
 let userList = require("../models/userList.json");
 let userIdCount = 1;
 
@@ -46,20 +45,17 @@ let userIdCount = 1;
  */
 const userLogin = async (req, res, next) => {
   try {
-    check('email_id', 'Email ID is required').notEmpty();
-
-    let user = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res
         .status(responseCodes.BAD_REQUEST)
         .json({ status: responseCodes.BAD_REQUEST, message: errors.array()[0].msg });
     } else {
-      if (userList.length > 0 && user.email_id) {
-        let userData = userList.find((data) => data.email_id == user.email_id);
+      if (userList.length > 0 && req.body.email_id) {
+        let userData = userList.find((data) => data.email_id == req.body.email_id);
         if (userData && userData.email_id) {
           const isPaswordMatched = await bcrypt.compare(
-            user.password,
+            req.body.password,
             userData.password
           );
           if (isPaswordMatched) {
