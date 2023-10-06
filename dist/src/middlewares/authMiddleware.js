@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const HttpStatusCode_1 = __importDefault(require("../constants/HttpStatusCode"));
+const errors_1 = require("../utils/errors");
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
 const checkUserAuth = (req, res, next) => {
@@ -30,7 +31,7 @@ const checkUserAuth = (req, res, next) => {
         }));
     }
     else {
-        return res.sendStatus(HttpStatusCode_1.default.UNAUTHORIZED);
+        throw new errors_1.HttpUnauthorized("Unauthorized. Please login to continue");
     }
 };
 exports.default = checkUserAuth;

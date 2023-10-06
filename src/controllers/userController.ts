@@ -1,9 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import { HttpConflict, HttpBadRequest, HttpNotFound, HttpUnauthorized } from '../utils/errors';
 import HttpStatusCode from '../constants/HttpStatusCode';
-import { HttpConflict, HttpBadRequest, HttpNotFound } from '../utils/errors';
-import * as validations from '../validations/validations';
+import { validateLoginInput, validateAddUserInput, validateUpdateUserInput } from '../validations/validations';
 import userListData from '../models/userList.json';
 import { config } from 'dotenv';
 
@@ -52,27 +52,20 @@ let userIdCount = 1;
 const userLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email_id, password } = req.body;
-    validations.validateLoginInput(req);
+    validateLoginInput(req);
 
-    if (userList.length > 0 && email_id) {
-      let userData = userList.find((data) => data.email_id == email_id);
-      if (userData && userData.email_id) {
-        const isPaswordMatched = await bcrypt.compare(
-          password,
-          userData.password
-        );
-        if (isPaswordMatched) {
-          const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!
-          const accessToken = jwt.sign(
-            { user_id: userData.user_id },
-            accessTokenSecret,
-            { expiresIn: 60 * 30 }
-          );
-          return res.status(HttpStatusCode.OK).json({ accessToken: accessToken });
-        }
+    let userData = userList.find((data) => data.email_id == email_id);
+    if (userData) {
+      const isPaswordMatched = await bcrypt.compare(password, userData.password);
+      if (isPaswordMatched) {
+        const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!
+        const accessToken = jwt.sign({ user_id: userData.user_id }, accessTokenSecret, { expiresIn: 60 * 30 });
+
+        return res.status(HttpStatusCode.OK).json({ accessToken: accessToken });
       }
     }
-    res.status(HttpStatusCode.UNAUTHORIZED).json({ message: "Invalid Credentials" });
+    throw new HttpUnauthorized("Invalid Credentials");
+
   } catch (error) {
     next(error);
   }
@@ -129,7 +122,7 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  */
 const userAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    validations.validateAddUserInput(req);
+    validateAddUserInput(req);
     const isUserExists = userList.some((item) => item.email_id === req.body.email_id);
     if (isUserExists) {
       throw new HttpConflict("User already exists for this email");
@@ -137,11 +130,7 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
       userIdCount++;
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(req.body.password, salt);
-      let user = {
-        ...req.body,
-        user_id: userIdCount,
-        password: hashedPassword,
-      };
+      let user = { ...req.body, user_id: userIdCount, password: hashedPassword };
       userList.push(user);
 
       res.status(HttpStatusCode.CREATED).json({ message: "User Created Successfully" });
@@ -226,7 +215,7 @@ const getUserList = async (req: Request, res: Response, next: NextFunction) => {
  */
 const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    validations.validateUpdateUserInput(req);
+    validateUpdateUserInput(req);
     const { password, ...userData } = req.body;
 
     const userIndex = userList.findIndex((data) => data.user_id == req.body.user_id);
@@ -274,7 +263,7 @@ const userView = async (req: Request, res: Response, next: NextFunction) => {
         res.status(HttpStatusCode.OK).json({ user });
       }
       else {
-        throw new HttpBadRequest("User not found");
+        throw new HttpNotFound("User not found");
       }
     }
   } catch (error) {
@@ -314,7 +303,7 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
         res.status(HttpStatusCode.OK).json({ message: "User Deleted Successfully" });
       }
       else {
-        throw new HttpBadRequest("User not found");
+        throw new HttpNotFound("User not found");
       }
     }
   } catch (error) {

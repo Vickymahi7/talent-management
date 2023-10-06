@@ -1,8 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { HttpBadRequest } from '../utils/errors';
+import { HttpNotFound } from '../utils/errors';
 
 const notFoundHandler = (req: Request, res: Response, next: NextFunction) => {
-  const error = new HttpBadRequest("Not found");
+  const error = new HttpNotFound("Not found");
   next(error);
 };
 

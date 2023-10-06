@@ -217,7 +217,7 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
       res.status(HttpStatusCode.OK).json({ message: "Photo Uploaded Successfully" });
 
     } else {
-      throw new HttpNotFound("Record Not Found");
+      throw new HttpNotFound("Profile Not Found");
     }
   } catch (error) {
     next(error);
@@ -422,7 +422,7 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
       res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
     }
     else {
-      throw new HttpNotFound("Record Not Found");
+      throw new HttpNotFound("Profile Not Found");
     }
   } catch (error) {
     next(error);
@@ -465,7 +465,7 @@ const hrProfileView = async (req: Request, res: Response, next: NextFunction) =>
 
       return res.status(HttpStatusCode.OK).json({ hrProfile });
     } else {
-      throw new HttpNotFound("Record Not Found");
+      throw new HttpNotFound("Profile Not Found");
     }
   } catch (error) {
     next(error);
@@ -504,7 +504,7 @@ const hrProfileDelete = async (req: Request, res: Response, next: NextFunction) 
       res.status(HttpStatusCode.OK).json({ message: "Profile Deleted Successfully" });
     }
     else {
-      throw new HttpNotFound("Record Not Found");
+      throw new HttpNotFound("Profile Not Found");
     }
   } catch (error) {
     next(error);

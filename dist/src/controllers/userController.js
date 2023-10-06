@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -49,9 +26,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.userDelete = exports.userView = exports.userUpdate = exports.userAdd = exports.userLogin = exports.getUserList = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const HttpStatusCode_1 = __importDefault(require("../constants/HttpStatusCode"));
 const errors_1 = require("../utils/errors");
-const validations = __importStar(require("../validations/validations"));
+const HttpStatusCode_1 = __importDefault(require("../constants/HttpStatusCode"));
+const validations_1 = require("../validations/validations");
 const userList_json_1 = __importDefault(require("../models/userList.json"));
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
@@ -97,19 +74,17 @@ let userIdCount = 1;
 const userLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email_id, password } = req.body;
-        validations.validateLoginInput(req);
-        if (userList.length > 0 && email_id) {
-            let userData = userList.find((data) => data.email_id == email_id);
-            if (userData && userData.email_id) {
-                const isPaswordMatched = yield bcrypt_1.default.compare(password, userData.password);
-                if (isPaswordMatched) {
-                    const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
-                    const accessToken = jsonwebtoken_1.default.sign({ user_id: userData.user_id }, accessTokenSecret, { expiresIn: 60 * 30 });
-                    return res.status(HttpStatusCode_1.default.OK).json({ accessToken: accessToken });
-                }
+        (0, validations_1.validateLoginInput)(req);
+        let userData = userList.find((data) => data.email_id == email_id);
+        if (userData) {
+            const isPaswordMatched = yield bcrypt_1.default.compare(password, userData.password);
+            if (isPaswordMatched) {
+                const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
+                const accessToken = jsonwebtoken_1.default.sign({ user_id: userData.user_id }, accessTokenSecret, { expiresIn: 60 * 30 });
+                return res.status(HttpStatusCode_1.default.OK).json({ accessToken: accessToken });
             }
         }
-        res.status(HttpStatusCode_1.default.UNAUTHORIZED).json({ message: "Invalid Credentials" });
+        throw new errors_1.HttpUnauthorized("Invalid Credentials");
     }
     catch (error) {
         next(error);
@@ -167,7 +142,7 @@ exports.userLogin = userLogin;
  */
 const userAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        validations.validateAddUserInput(req);
+        (0, validations_1.validateAddUserInput)(req);
         const isUserExists = userList.some((item) => item.email_id === req.body.email_id);
         if (isUserExists) {
             throw new errors_1.HttpConflict("User already exists for this email");
@@ -262,7 +237,7 @@ exports.getUserList = getUserList;
  */
 const userUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        validations.validateUpdateUserInput(req);
+        (0, validations_1.validateUpdateUserInput)(req);
         const _a = req.body, { password } = _a, userData = __rest(_a, ["password"]);
         const userIndex = userList.findIndex((data) => data.user_id == req.body.user_id);
         if (userIndex !== -1) {
@@ -308,7 +283,7 @@ const userView = (req, res, next) => __awaiter(void 0, void 0, void 0, function*
                 res.status(HttpStatusCode_1.default.OK).json({ user });
             }
             else {
-                throw new errors_1.HttpBadRequest("User not found");
+                throw new errors_1.HttpNotFound("User not found");
             }
         }
     }
@@ -348,7 +323,7 @@ const userDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
                 res.status(HttpStatusCode_1.default.OK).json({ message: "User Deleted Successfully" });
             }
             else {
-                throw new errors_1.HttpBadRequest("User not found");
+                throw new errors_1.HttpNotFound("User not found");
             }
         }
     }

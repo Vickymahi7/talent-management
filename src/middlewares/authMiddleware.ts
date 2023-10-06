@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import HttpStatusCode from '../constants/HttpStatusCode';
+import { HttpNotFound, HttpUnauthorized } from '../utils/errors';
 import { config } from 'dotenv';
 
 config();
@@ -18,7 +19,7 @@ const checkUserAuth = (req: Request, res: Response, next: NextFunction) => {
       }
     });
   } else {
-    return res.sendStatus(HttpStatusCode.UNAUTHORIZED);
+    throw new HttpUnauthorized("Unauthorized. Please login to continue");
   }
 };
 

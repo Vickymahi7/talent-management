@@ -219,7 +219,7 @@ const hrProfilePhotoUpload = (req, res, next) => __awaiter(void 0, void 0, void 
             res.status(HttpStatusCode_1.default.OK).json({ message: "Photo Uploaded Successfully" });
         }
         else {
-            throw new errors_1.HttpNotFound("Record Not Found");
+            throw new errors_1.HttpNotFound("Profile Not Found");
         }
     }
     catch (error) {
@@ -409,7 +409,7 @@ const hrProfileUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
             res.status(HttpStatusCode_1.default.OK).json({ message: "Profile Updated Successfully" });
         }
         else {
-            throw new errors_1.HttpNotFound("Record Not Found");
+            throw new errors_1.HttpNotFound("Profile Not Found");
         }
     }
     catch (error) {
@@ -451,7 +451,7 @@ const hrProfileView = (req, res, next) => __awaiter(void 0, void 0, void 0, func
             return res.status(HttpStatusCode_1.default.OK).json({ hrProfile });
         }
         else {
-            throw new errors_1.HttpNotFound("Record Not Found");
+            throw new errors_1.HttpNotFound("Profile Not Found");
         }
     }
     catch (error) {
@@ -489,7 +489,7 @@ const hrProfileDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
             res.status(HttpStatusCode_1.default.OK).json({ message: "Profile Deleted Successfully" });
         }
         else {
-            throw new errors_1.HttpNotFound("Record Not Found");
+            throw new errors_1.HttpNotFound("Profile Not Found");
         }
     }
     catch (error) {
