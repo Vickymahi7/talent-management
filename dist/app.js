@@ -8,9 +8,9 @@ const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const app = (0, express_1.default)();
 const dotenv_1 = require("dotenv");
-const routeHandler_1 = __importDefault(require("./src/routes/routeHandler"));
-const errorHandlerMiddleware_1 = __importDefault(require("./src/middlewares/errorHandlerMiddleware"));
-const notFoundHandlerMiddleware_1 = __importDefault(require("./src/middlewares/notFoundHandlerMiddleware"));
+const routeHandler_1 = __importDefault(require("./routes/routeHandler"));
+const errorHandlerMiddleware_1 = __importDefault(require("./middlewares/errorHandlerMiddleware"));
+const notFoundHandlerMiddleware_1 = __importDefault(require("./middlewares/notFoundHandlerMiddleware"));
 (0, dotenv_1.config)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
@@ -27,5 +27,5 @@ app
     console.log(`Server is running on http://localhost:${PORT}`);
 })
     .on("error", (error) => {
-    console.error("Error in server setup:", error);
+    console.error(error);
 });
