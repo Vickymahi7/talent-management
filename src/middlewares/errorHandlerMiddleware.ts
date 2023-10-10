@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ApiError } from '../utils/errors';
-import HttpStatusCode from '../constants/HttpStatusCode';
+import HttpStatusCode from '../utils/httpStatusCode';
 
 const errorHandler = (error: ApiError, req: Request, res: Response, next: NextFunction) => {
   if (error instanceof ApiError) {
@@ -9,6 +9,7 @@ const errorHandler = (error: ApiError, req: Request, res: Response, next: NextFu
   } else {
     res.sendStatus(HttpStatusCode.INTERNAL_SERVER_ERROR)
   }
+  console.error(error);
 };
 
 export default errorHandler;

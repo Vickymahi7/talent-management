@@ -1,11 +1,19 @@
 import { NextFunction, Request, Response } from 'express';
-import HttpStatusCode from '../constants/HttpStatusCode';
+import axios, { AxiosResponse } from 'axios';
+import HttpStatusCode from '../utils/httpStatusCode';
 import { HttpNotFound, HttpBadRequest } from '../utils/errors';
 import hrProfileListData from "../models/hrProfileList.json";
+import HrProfile from "../models/hrProfileModel";
+import { config } from "dotenv";
+import { ClientRequest } from "http";
 import { validatePhotoUpload, validateAddHrProfileInput, validateUpdateHrProfileInput } from "../validations/validations";
+config();
 
 let hrProfileList: any[] = hrProfileListData;
 let hrProfileIdCount = 1;
+
+const SOLR_BASE_URL = process.env.SOLR_BASE_URL || "http://localhost:8983/solr";
+const SOLR_CORE = process.env.SOLR_CORE || "resumemanagement";
 
 /**
  * @swagger
@@ -154,24 +162,24 @@ let hrProfileIdCount = 1;
  */
 const getHrProfileList = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let { skills } = req.query;
-    skills = skills ? skills[0].toLowerCase() : '';
+    const params = {
+      q: '*:*',
+      wt: 'json',
+    };
 
-    const newList = hrProfileList
-      .filter((data) => {
-        const existingSkills = data.skills ? JSON.parse(data.skills.toLowerCase()) : [];
-        return !skills || existingSkills.includes(skills);
-      })
-      .map((data) => ({
-        ...data,
-        work_experience: data.work_experience ? JSON.parse(data.work_experience) : [],
-        project: data.project ? JSON.parse(data.project) : [],
-        education: data.education ? JSON.parse(data.education) : [],
-        skills: data.skills ? JSON.parse(data.skills) : []
-      }));
+    let response: AxiosResponse = await axios.get(`${SOLR_BASE_URL}/${SOLR_CORE}/select`, { params })
 
-    res.status(HttpStatusCode.OK).json({ hrProfileList: newList });
+    const hrProfileList: HrProfile[] = response.data.response.docs.map((data: any) => ({
+      ...data,
+      work_experience: data.work_experience ? JSON.parse(data.work_experience) : [],
+      project: data.project ? JSON.parse(data.project) : [],
+      education: data.education ? JSON.parse(data.education) : [],
+      skills: data.skills ? JSON.parse(data.skills) : []
+    }));
+
+    res.status(HttpStatusCode.OK).json({ hrProfileList });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -304,24 +312,18 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
   try {
     validateAddHrProfileInput(req);
 
-    const work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
-    const project = req.body.project ? JSON.stringify(req.body.project) : "";
-    const education = req.body.education ? JSON.stringify(req.body.education) : "";
-    const skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
-    hrProfileIdCount++;
+    const hrProfile: HrProfile = req.body;
 
-    const hrProfile = {
-      ...req.body,
-      hr_profile_id: hrProfileIdCount,
-      ...{ work_experience },
-      ...{ project },
-      ...{ education },
-      ...{ skills },
-    };
-    hrProfileList.push(hrProfile);
+    hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
+    hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
+    hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
+    hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+
+    await axios.post(`${SOLR_BASE_URL}/${SOLR_CORE}/update?commit=true`, [hrProfile]);
 
     res.status(HttpStatusCode.CREATED).json({ message: "Profile Added Successfully" });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -405,26 +407,19 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
 const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     validateUpdateHrProfileInput(req);
-    const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == req.body.id);
-    if (hrProfileIndex !== -1) {
-      const work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
-      const project = req.body.project ? JSON.stringify(req.body.project) : "";
-      const education = req.body.education ? JSON.stringify(req.body.education) : "";
-      const skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+    const { id, ...rest } = req.body;
+    const hrProfile: HrProfile = rest;
 
-      hrProfileList[hrProfileIndex] = {
-        ...hrProfileList[hrProfileIndex],
-        ...{ work_experience },
-        ...{ project },
-        ...{ education },
-        ...{ skills },
-      };
-      res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
-    }
-    else {
-      throw new HttpNotFound("Profile Not Found");
-    }
+    hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
+    hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
+    hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
+    hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+
+    await axios.post(`${SOLR_BASE_URL}/${SOLR_CORE}/update?versions=true&commit=true`, [hrProfile]);
+
+    res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };

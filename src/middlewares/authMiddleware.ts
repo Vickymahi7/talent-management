@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import HttpStatusCode from '../constants/HttpStatusCode';
+import HttpStatusCode from '../utils/httpStatusCode';
 import { HttpNotFound, HttpUnauthorized } from '../utils/errors';
 import { config } from 'dotenv';
 
