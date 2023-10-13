@@ -1,19 +1,17 @@
 import { NextFunction, Request, Response } from 'express';
 import axios, { AxiosResponse } from 'axios';
 import HttpStatusCode from '../utils/httpStatusCode';
-import { HttpNotFound, HttpBadRequest } from '../utils/errors';
+import { HttpNotFound, HttpBadRequest, HttpInternalServerError } from '../utils/errors';
 import hrProfileListData from "../models/hrProfileList.json";
 import HrProfile from "../models/hrProfileModel";
 import { config } from "dotenv";
-import { ClientRequest } from "http";
 import { validatePhotoUpload, validateAddHrProfileInput, validateUpdateHrProfileInput } from "../validations/validations";
 config();
 
 let hrProfileList: any[] = hrProfileListData;
-let hrProfileIdCount = 1;
 
-const SOLR_BASE_URL = process.env.SOLR_BASE_URL || "http://localhost:8983/solr";
-const SOLR_CORE = process.env.SOLR_CORE || "resumemanagement";
+const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
+const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
 
 /**
  * @swagger
@@ -23,6 +21,8 @@ const SOLR_CORE = process.env.SOLR_CORE || "resumemanagement";
  *       type: object
  *       properties:
  *         hr_profile_id:
+ *           type: number
+ *         tenant_id:
  *           type: number
  *         hr_profile_type_id:
  *           type: number
@@ -150,24 +150,19 @@ const SOLR_CORE = process.env.SOLR_CORE || "resumemanagement";
  *     tags: [HR Profile]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: skills
- *         description: To filter Resumes based on skill
- *         schema:
- *           type: string
  *     responses:
  *       200:
  *         description: OK.
  */
 const getHrProfileList = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
     const params = {
       q: '*:*',
       wt: 'json',
     };
 
-    let response: AxiosResponse = await axios.get(`${SOLR_BASE_URL}/${SOLR_CORE}/select`, { params })
+    let response: AxiosResponse = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params })
 
     const hrProfileList: HrProfile[] = response.data.response.docs.map((data: any) => ({
       ...data,
@@ -179,7 +174,6 @@ const getHrProfileList = async (req: Request, res: Response, next: NextFunction)
 
     res.status(HttpStatusCode.OK).json({ hrProfileList });
   } catch (error) {
-    console.log(error)
     next(error);
   }
 };
@@ -247,7 +241,6 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *           schema:
  *             $ref: '#/components/schemas/HrProfile'
  *             example:
- *               hr_profile_id: 1
  *               hr_profile_type_id: null
  *               first_name: Vignesh
  *               last_name: Vicky
@@ -277,9 +270,6 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *               status_id: 1
  *               user_id: 1
  *               active: true
- *               created_by_id: null
- *               created_dt: null
- *               last_updated_dt: null
  *               skills:
  *                 - Java
  *                 - Javascript
@@ -311,19 +301,23 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
 const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
     validateAddHrProfileInput(req);
-
+    const currentUserId = req.headers.userId as unknown as number;
+    const tenantId = req.headers.tenantId as unknown as number;
+    const solrCore = SOLR_CORE_PREFIX! + tenantId;
     const hrProfile: HrProfile = req.body;
 
     hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
     hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
     hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
     hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+    hrProfile.user_id = currentUserId;
+    hrProfile.tenant_id = tenantId;
+    hrProfile.created_by_id = currentUserId;
 
-    await axios.post(`${SOLR_BASE_URL}/${SOLR_CORE}/update?commit=true`, [hrProfile]);
+    await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, [hrProfile]);
 
     res.status(HttpStatusCode.CREATED).json({ message: "Profile Added Successfully" });
   } catch (error) {
-    console.log(error)
     next(error);
   }
 };
@@ -407,61 +401,25 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
 const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     validateUpdateHrProfileInput(req);
-    const { id, ...rest } = req.body;
-    const hrProfile: HrProfile = rest;
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const hrProfile: HrProfile = req.body;
 
     hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
     hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
     hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
     hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
 
-    await axios.post(`${SOLR_BASE_URL}/${SOLR_CORE}/update?versions=true&commit=true`, [hrProfile]);
+    const data = {
+      "add": {
+        "doc": {
+          "id": hrProfile.id,
+          ...hrProfile
+        }
+      }
+    };
+    await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
     res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
-  } catch (error) {
-    console.log(error)
-    next(error);
-  }
-};
-
-/**
- * @swagger
- * /hrprofile/view/{id}:
- *   get:
- *     summary: View Profile
- *     tags: [HR Profile]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *     - name: id
- *       in: path
- *       required: true
- *       schema:
- *         type: integer
- *     responses:
- *       200:
- *         description: OK.
- */
-const hrProfileView = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    let hrProfileId = req.params.id;
-    if (!hrProfileId) {
-      throw new HttpBadRequest("Profile Id is required");
-    }
-    const hrProfileData = hrProfileList.find(
-      (data) => data.hr_profile_id == hrProfileId
-    );
-    if (hrProfileData) {
-      const hrProfile = { ...hrProfileData };
-      hrProfile.work_experience = hrProfile.work_experience ? JSON.parse(hrProfile.work_experience) : [];
-      hrProfile.project = hrProfile.project ? JSON.parse(hrProfile.project) : [];
-      hrProfile.education = hrProfile.education ? JSON.parse(hrProfile.education) : [];
-      hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : [];
-
-      return res.status(HttpStatusCode.OK).json({ hrProfile });
-    } else {
-      throw new HttpNotFound("Profile Not Found");
-    }
   } catch (error) {
     next(error);
   }
@@ -480,34 +438,47 @@ const hrProfileView = async (req: Request, res: Response, next: NextFunction) =>
  *       in: path
  *       required: true
  *       schema:
- *         type: integer
+ *         type: string
  *     responses:
  *       200:
  *         description: OK.
  */
 const hrProfileDelete = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let hrProfileId = req.params.id;
-    if (!hrProfileId) {
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+
+    let docId = req.params.id;
+    if (!docId) {
       throw new HttpBadRequest("Profile Id is required");
     }
-    const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == hrProfileId);
-    if (hrProfileIndex !== -1) {
+    const queryToDeleteDoc = `id:${docId}`;
+    console.log(queryToDeleteDoc)
+    const data = {
+      delete: {
+        id: docId,
+      },
+    };
+    const response = await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
-      hrProfileList.splice(hrProfileIndex, 1);
-
-      res.status(HttpStatusCode.OK).json({ message: "Profile Deleted Successfully" });
-    }
-    else {
-      throw new HttpNotFound("Profile Not Found");
-    }
+    res.status(HttpStatusCode.OK).json({ message: "Profile Deleted Successfully" });
   } catch (error) {
     next(error);
   }
 };
 
-export {
-  getHrProfileList, hrProfileAdd, hrProfileDelete, hrProfilePhotoUpload, hrProfileUpdate,
-  hrProfileView
-};
+async function createSolrCore(tenantId: number) {
+  try {
+    const coreName = SOLR_CORE_PREFIX! + tenantId;
+    const configSet = "talent_management_configs";
+
+    const createCoreUrl = `${SOLR_BASE_URL}/admin/cores?action=CREATE&name=${coreName}&configSet=${configSet}&wt=json`;
+
+    const response = await axios.post(createCoreUrl);
+    return response.data;
+  } catch (error) {
+    throw new HttpInternalServerError(`Something went wrong!`);
+  }
+}
+
+export { getHrProfileList, hrProfileAdd, hrProfileDelete, hrProfilePhotoUpload, hrProfileUpdate, createSolrCore };
 

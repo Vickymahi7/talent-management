@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.HttpInternalServerError = exports.HttpConflict = exports.HttpNotFound = exports.HttpUnauthorized = exports.HttpBadRequest = exports.ApiError = void 0;
+exports.HttpInternalServerError = exports.HttpConflict = exports.HttpNotFound = exports.HttpForbidden = exports.HttpUnauthorized = exports.HttpBadRequest = exports.ApiError = void 0;
 const httpStatusCode_1 = __importDefault(require("./httpStatusCode"));
 class ApiError extends Error {
     constructor(message, statusCode) {
@@ -28,6 +28,13 @@ class HttpUnauthorized extends ApiError {
     }
 }
 exports.HttpUnauthorized = HttpUnauthorized;
+class HttpForbidden extends ApiError {
+    constructor(message) {
+        super(message, httpStatusCode_1.default.FORBIDDEN);
+        this.name = 'Forbidden';
+    }
+}
+exports.HttpForbidden = HttpForbidden;
 class HttpNotFound extends ApiError {
     constructor(message) {
         super(message, httpStatusCode_1.default.NOT_FOUND);

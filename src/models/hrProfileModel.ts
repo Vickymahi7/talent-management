@@ -1,6 +1,7 @@
 interface HrProfile {
   id?: string,
-  hr_profile_id?: string,
+  hr_profile_id?: number,
+  tenant_id?: number,
   hr_profile_type_id?: number,
   first_name?: string,
   last_name?: string,

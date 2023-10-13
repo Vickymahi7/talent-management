@@ -1,35 +1,55 @@
 import { Request } from 'express';
 import { HttpBadRequest } from '../utils/errors';
+import Tenant from '../models/tenantModel';
+import User from '../models/userModel';
 
-export const validateLoginInput = (req: Request): void => {
-  if (!req.body.email_id) {
+export const validateAddTenantInput = (tenant: Tenant): void => {
+  if (!tenant.name) {
+    throw new HttpBadRequest('Name is required');
+  }
+};
+
+export const validateUpdateTenantInput = (tenant: Tenant): void => {
+  if (!tenant.tenant_id) {
+    throw new HttpBadRequest('Tenant Id is required');
+  }
+  if (!tenant.name) {
+    throw new HttpBadRequest('Name is required');
+  }
+};
+
+export const validateLoginInput = (email_id: string, password: string): void => {
+  if (!email_id) {
     throw new HttpBadRequest('Email ID is required');
   }
-  if (!req.body.password) {
+  if (!password) {
     throw new HttpBadRequest('Password is required');
   }
 };
 
-export const validateAddUserInput = (req: Request): void => {
-  if (!req.body.user_name) {
+export const validateAddUserInput = (user: User): void => {
+  if (!user.tenant_id) {
+    throw new HttpBadRequest('Tenant is required');
+  }
+  if (!user.user_name) {
     throw new HttpBadRequest('User name is required');
   }
-  if (!req.body.email_id) {
+  if (!user.email_id) {
     throw new HttpBadRequest('Email ID is required');
   }
-  if (!req.body.password) {
+  if (!user.password) {
     throw new HttpBadRequest('Password is required');
   }
 };
 
-export const validateUpdateUserInput = (req: Request): void => {
-  if (!req.body.user_id) {
+export const validateUpdateUserInput = (user: User): void => {
+  if (!user.user_id) {
     throw new HttpBadRequest("User Id is required");
   }
-  if (!req.body.user_name) {
+  if (!user.user_name) {
     throw new HttpBadRequest('User name is required');
   }
-  if (!req.body.email_id) {
+  if (!user.email_id) {
     throw new HttpBadRequest('Email ID is required');
   }
 };
@@ -51,6 +71,9 @@ export const validatePhotoUpload = (req: Request): void => {
 export const validateAddHrProfileInput = (req: Request): void => {
   if (!req.body.email_id) {
     throw new HttpBadRequest('Email ID is required');
+  }
+  if (!req.body.user_id) {
+    throw new HttpBadRequest('User ID is required');
   }
 };
 

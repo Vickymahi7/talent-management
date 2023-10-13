@@ -13,7 +13,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const httpStatusCode_1 = __importDefault(require("../utils/httpStatusCode"));
 const errors_1 = require("../utils/errors");
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
@@ -23,15 +22,22 @@ const checkUserAuth = (req, res, next) => {
     if (token) {
         jsonwebtoken_1.default.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decodedToken) => __awaiter(void 0, void 0, void 0, function* () {
             if (err) {
-                return res.sendStatus(httpStatusCode_1.default.FORBIDDEN);
+                const error = new errors_1.HttpForbidden("Invalid Access Token");
+                next(error);
             }
             else {
+                const userId = decodedToken.user_id;
+                const tenantId = decodedToken.tenant_id;
+                req.headers.userId = userId;
+                req.headers.tenantId = tenantId;
+                console.log(userId, tenantId);
                 next();
             }
         }));
     }
     else {
-        throw new errors_1.HttpUnauthorized("Unauthorized. Please login to continue");
+        const error = new errors_1.HttpUnauthorized("Unauthorized. Please login to continue");
+        next(error);
     }
 };
 exports.default = checkUserAuth;

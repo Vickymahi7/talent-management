@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import HttpStatusCode from '../utils/httpStatusCode';
-import { HttpNotFound, HttpUnauthorized } from '../utils/errors';
+import { HttpForbidden, HttpUnauthorized } from '../utils/errors';
 import { config } from 'dotenv';
 
 config();
@@ -13,13 +12,20 @@ const checkUserAuth = (req: Request, res: Response, next: NextFunction) => {
   if (token) {
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!, async (err, decodedToken) => {
       if (err) {
-        return res.sendStatus(HttpStatusCode.FORBIDDEN);
+        const error = new HttpForbidden("Invalid Access Token");
+        next(error);
       } else {
+        const userId = (decodedToken as jwt.JwtPayload).user_id;
+        const tenantId = (decodedToken as jwt.JwtPayload).tenant_id;
+        req.headers.userId = userId;
+        req.headers.tenantId = tenantId;
+        console.log(userId, tenantId)
         next();
       }
     });
   } else {
-    throw new HttpUnauthorized("Unauthorized. Please login to continue");
+    const error = new HttpUnauthorized("Unauthorized. Please login to continue");
+    next(error);
   }
 };
 

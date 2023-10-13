@@ -1,13 +1,14 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { Request, Response, NextFunction } from 'express';
-import { HttpConflict, HttpBadRequest, HttpNotFound, HttpUnauthorized } from '../utils/errors';
-import HttpStatusCode from '../utils/httpStatusCode';
-import { validateLoginInput, validateAddUserInput, validateUpdateUserInput } from '../validations/validations';
-import db from '../database/mysqlDatabase';
-import { ResultSetHeader } from 'mysql2';
-import User from '../models/userModel';
 import { config } from 'dotenv';
+import { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { ResultSetHeader } from 'mysql2';
+import db from '../database/dbConnection';
+import User from '../models/userModel';
+import { HttpBadRequest, HttpConflict, HttpNotFound, HttpUnauthorized } from '../utils/errors';
+import HttpStatusCode from '../utils/httpStatusCode';
+import { validateAddUserInput, validateLoginInput, validateUpdateUserInput } from '../validations/validations';
+import { createUser } from '../helperFunctions/userFunctions';
 
 config();
 
@@ -51,16 +52,15 @@ config();
 const userLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email_id, password } = req.body;
-    validateLoginInput(req);
+    validateLoginInput(email_id, password);
 
-    const [existingUsers] = await db.query("SELECT * FROM user WHERE email_id = ?", [email_id]);
-
+    const [existingUsers] = await db.query("SELECT user_id,tenant_id,password FROM user WHERE email_id = ?", [email_id]);
     if (Array.isArray(existingUsers) && existingUsers.length > 0) {
       const user: User = existingUsers[0] as User;
-      const isPaswordMatched = await bcrypt.compare(password, user.password);
+      const isPaswordMatched = await bcrypt.compare(password, user.password!);
       if (isPaswordMatched) {
         const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!
-        const accessToken = jwt.sign({ user_id: user.user_id }, accessTokenSecret, { expiresIn: 60 * 30 });
+        const accessToken = jwt.sign({ user_id: user.user_id, tenant_id: user.tenant_id }, accessTokenSecret, { expiresIn: 60 * 30 });
 
         return res.status(HttpStatusCode.OK).json({ accessToken: accessToken });
       }
@@ -74,10 +74,12 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
 
 /**
  * @swagger
- * /signup:
+ * /user/add:
  *   post:
- *     summary: Add New User Account
+ *     summary: Add New User
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -85,6 +87,8 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  *           schema:
  *             type: object
  *             properties:
+ *               tenant_id:
+ *                 type: number
  *               user_type_id:
  *                 type: number
  *               user_name:
@@ -93,29 +97,22 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  *                 type: string
  *               email_id:
  *                 type: string
- *               created_by_id:
+ *               user_status_id:
  *                 type: number
- *               status_id:
- *                 type: string
  *               active:
  *                 type: boolean
- *               last_access:
- *                 type: string
- *               created_dt:
- *                 type: string
- *               last_updated_dt:
- *                 type: string
  *             required:
+ *               - tenant_id
  *               - user_name
  *               - email_id
  *               - password
  *             example:
- *               user_type_id: null
+ *               tenant_id: 1
+ *               user_type_id: 3
  *               user_name: Demo User
  *               password: demo123
  *               email_id: demouser@demo.com
- *               created_by_id: null
- *               status_id: null
+ *               user_status_id: null
  *               active: true
  *     responses:
  *       201:
@@ -123,23 +120,13 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  */
 const userAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    validateAddUserInput(req);
+    let user: User = req.body;
+    validateAddUserInput(user);
 
-    const [existingUsers] = await db.query("SELECT * FROM user WHERE email_id = ?", [req.body.email_id]);
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
-      throw new HttpConflict("User already exists for this email");
-    } else {
-      const salt = await bcrypt.genSalt();
-      const hashedPassword = await bcrypt.hash(req.body.password, salt);
-      const user: User = { ...req.body, password: hashedPassword };
+    const response = await createUser(user);
+    const resHeader = response[0] as ResultSetHeader;
 
-      const response = await db.query(
-        "INSERT INTO user (organization_id,user_type_id,user_name,password,email_id,authtoken,user_status_id,active,created_by_id,created_dt,last_access,last_updated_dt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [user.organization_id, user.user_type_id, user.user_name, user.password, user.email_id, user.authtoken, user.user_status_id, user.active, user.created_by_id, new Date(), user.last_access, user.last_updated_dt]
-      );
-
-      res.status(HttpStatusCode.CREATED).json({ message: "User Created Successfully" });
-    }
+    res.status(HttpStatusCode.CREATED).json({ message: "User Created Successfully" });
   } catch (error) {
     next(error);
   }
@@ -159,7 +146,9 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
  */
 const getUserList = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const [userList] = await db.query("SELECT * FROM user");
+    const tenantId = req.headers.tenantId;
+
+    const [userList] = await db.query("SELECT * FROM user WHERE tenant_id = ?", [tenantId]);
     res.status(HttpStatusCode.OK).json({ userList });
   } catch (error) {
     next(error);
@@ -187,22 +176,12 @@ const getUserList = async (req: Request, res: Response, next: NextFunction) => {
  *                 type: number
  *               user_name:
  *                 type: string
- *               password:
- *                 type: string
  *               email_id:
  *                 type: string
- *               created_by_id:
- *                 type: number
- *               status_id:
+ *               user_status_id:
  *                 type: string
  *               active:
  *                 type: boolean
- *               last_access:
- *                 type: string
- *               created_dt:
- *                 type: string
- *               last_updated_dt:
- *                 type: string
  *             required:
  *               - user_id
  *               - user_name
@@ -212,8 +191,7 @@ const getUserList = async (req: Request, res: Response, next: NextFunction) => {
  *               user_type_id: null
  *               user_name: Demo User
  *               email_id: demouser@demo.com
- *               created_by_id: null
- *               status_id: null
+ *               user_status_id: null
  *               active: true
  *     responses:
  *       200:
@@ -221,9 +199,9 @@ const getUserList = async (req: Request, res: Response, next: NextFunction) => {
  */
 const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    validateUpdateUserInput(req);
-
     const user: User = req.body;
+
+    validateUpdateUserInput(user);
 
     const [existingUsers] = await db.query("SELECT * FROM user WHERE user_id = ?", [user.user_id]);
     if (Array.isArray(existingUsers) && existingUsers.length > 0) {
@@ -237,8 +215,8 @@ const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
         }
       }
       const response = await db.query(
-        "UPDATE user SET organization_id=?,user_type_id=?,user_name=?,email_id=?,authtoken=?,user_status_id=?,active=?,last_updated_dt=? Where user_id = ?",
-        [user.organization_id, user.user_type_id, user.user_name, user.email_id, user.authtoken, user.user_status_id, user.active, new Date(), user.user_id]
+        "UPDATE user SET user_type_id=?,user_name=?,email_id=?,user_status_id=?,active=?,last_updated_dt=? Where user_id = ?",
+        [user.user_type_id, user.user_name, user.email_id, user.user_status_id, user.active, new Date(), user.user_id]
       );
 
       res.status(HttpStatusCode.OK).json({ message: "User Updated Successfully" });
@@ -329,11 +307,5 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export {
-  getUserList,
-  userLogin,
-  userAdd,
-  userUpdate,
-  userView,
-  userDelete,
-};
+export { getUserList, userAdd, userDelete, userLogin, userUpdate, userView };
+

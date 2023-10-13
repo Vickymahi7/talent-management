@@ -24,6 +24,13 @@ class HttpUnauthorized extends ApiError {
   }
 }
 
+class HttpForbidden extends ApiError {
+  constructor(message: string) {
+    super(message, HttpStatusCode.FORBIDDEN);
+    this.name = 'Forbidden';
+  }
+}
+
 class HttpNotFound extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.NOT_FOUND);
@@ -49,6 +56,7 @@ export {
   ApiError,
   HttpBadRequest,
   HttpUnauthorized,
+  HttpForbidden,
   HttpNotFound,
   HttpConflict,
   HttpInternalServerError,

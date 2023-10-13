@@ -1,6 +1,6 @@
 interface User {
   user_id?: number,
-  organization_id?: number,
+  tenant_id?: number,
   user_type_id?: number,
   user_name?: string,
   password?: string,
