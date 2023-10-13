@@ -402,7 +402,8 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
   try {
     validateUpdateHrProfileInput(req);
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const hrProfile: HrProfile = req.body;
+    const { _version_, ...hrProfileData } = req.body;
+    const hrProfile: HrProfile = hrProfileData;
 
     hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
     hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
