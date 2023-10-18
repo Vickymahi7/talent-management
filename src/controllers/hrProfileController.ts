@@ -2,13 +2,10 @@ import { NextFunction, Request, Response } from 'express';
 import axios, { AxiosResponse } from 'axios';
 import HttpStatusCode from '../utils/httpStatusCode';
 import { HttpNotFound, HttpBadRequest, HttpInternalServerError } from '../utils/errors';
-import hrProfileListData from "../models/hrProfileList.json";
 import HrProfile from "../models/HrProfile";
 import dotenv from "dotenv";
 import { validatePhotoUpload, validateAddHrProfileInput, validateUpdateHrProfileInput } from "../validations/validations";
 dotenv.config();
-
-let hrProfileList: any[] = hrProfileListData;
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
 const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
@@ -188,7 +185,7 @@ const getHrProfileList = async (req: Request, res: Response, next: NextFunction)
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
 
-    let response: AxiosResponse = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query } })
+    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query } })
 
     const hrProfileList = response.data.response.docs.map((data: any) => ({
       ...data,
@@ -234,19 +231,26 @@ const getHrProfileList = async (req: Request, res: Response, next: NextFunction)
  */
 const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const userId = req.headers.userId;
+    const id = req.body.id;
+    const file = req.file;
     validatePhotoUpload(req);
 
-    const file = req.file;
-    const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == req.body.id);
-    if (hrProfileIndex !== -1) {
-      const filePath = file ? file.path : "";
-      hrProfileList[hrProfileIndex] = { ...hrProfileList[hrProfileIndex], photo_url: filePath };
-
-      res.status(HttpStatusCode.OK).json({ message: "Photo Uploaded Successfully" });
-
-    } else {
-      throw new HttpNotFound("Profile Not Found");
+    let updatePayload = {
+      id: id,
+      user_id: userId,
+      photo_url: { set: file?.path }
     }
+
+    const data = {
+      add: { doc: updatePayload },
+      commit: {},
+    };
+    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+
+    res.status(HttpStatusCode.OK).json({ message: "Photo Uploaded Successfully" });
+
   } catch (error) {
     next(error);
   }
@@ -449,7 +453,7 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
       add: { doc: updatePayload },
       commit: {},
     };
-    const response = await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
     res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
   } catch (error) {
@@ -488,7 +492,7 @@ const hrProfileDelete = async (req: Request, res: Response, next: NextFunction) 
         id: docId,
       },
     };
-    const response = await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+    await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
     res.status(HttpStatusCode.OK).json({ message: "Profile Deleted Successfully" });
   } catch (error) {

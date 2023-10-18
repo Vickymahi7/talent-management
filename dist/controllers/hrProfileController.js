@@ -27,12 +27,10 @@ exports.hrProfileUpdate = exports.hrProfilePhotoUpload = exports.hrProfileDelete
 const axios_1 = __importDefault(require("axios"));
 const httpStatusCode_1 = __importDefault(require("../utils/httpStatusCode"));
 const errors_1 = require("../utils/errors");
-const hrProfileList_json_1 = __importDefault(require("../models/hrProfileList.json"));
 const HrProfile_1 = __importDefault(require("../models/HrProfile"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const validations_1 = require("../validations/validations");
 dotenv_1.default.config();
-let hrProfileList = hrProfileList_json_1.default;
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
 const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
 /**
@@ -246,17 +244,22 @@ exports.getHrProfileList = getHrProfileList;
  */
 const hrProfilePhotoUpload = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        (0, validations_1.validatePhotoUpload)(req);
+        const solrCore = SOLR_CORE_PREFIX + req.headers.tenantId;
+        const userId = req.headers.userId;
+        const id = req.body.id;
         const file = req.file;
-        const hrProfileIndex = hrProfileList.findIndex((data) => data.hr_profile_id == req.body.id);
-        if (hrProfileIndex !== -1) {
-            const filePath = file ? file.path : "";
-            hrProfileList[hrProfileIndex] = Object.assign(Object.assign({}, hrProfileList[hrProfileIndex]), { photo_url: filePath });
-            res.status(httpStatusCode_1.default.OK).json({ message: "Photo Uploaded Successfully" });
-        }
-        else {
-            throw new errors_1.HttpNotFound("Profile Not Found");
-        }
+        (0, validations_1.validatePhotoUpload)(req);
+        let updatePayload = {
+            id: id,
+            user_id: userId,
+            photo_url: { set: file === null || file === void 0 ? void 0 : file.path }
+        };
+        const data = {
+            add: { doc: updatePayload },
+            commit: {},
+        };
+        yield axios_1.default.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+        res.status(httpStatusCode_1.default.OK).json({ message: "Photo Uploaded Successfully" });
     }
     catch (error) {
         next(error);
@@ -456,7 +459,7 @@ const hrProfileUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
             add: { doc: updatePayload },
             commit: {},
         };
-        const response = yield axios_1.default.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+        yield axios_1.default.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
         res.status(httpStatusCode_1.default.OK).json({ message: "Profile Updated Successfully" });
     }
     catch (error) {
@@ -494,7 +497,7 @@ const hrProfileDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
                 id: docId,
             },
         };
-        const response = yield axios_1.default.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+        yield axios_1.default.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
         res.status(httpStatusCode_1.default.OK).json({ message: "Profile Deleted Successfully" });
     }
     catch (error) {
