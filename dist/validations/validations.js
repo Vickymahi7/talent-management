@@ -75,6 +75,9 @@ const validateUpdateHrProfileInput = (req) => {
     if (!req.body.hr_profile_id) {
         throw new errors_1.HttpBadRequest('Profile Id is required');
     }
+    if (!req.body.user_id) {
+        throw new errors_1.HttpBadRequest('User Id is required');
+    }
     if (!req.body.email_id) {
         throw new errors_1.HttpBadRequest('Email ID is required');
     }

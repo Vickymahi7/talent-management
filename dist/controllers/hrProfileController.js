@@ -8,6 +8,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -43,8 +54,6 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         middle_name:
  *           type: string
- *         position:
- *           type: string
  *         email_id:
  *           type: string
  *         alternate_email_id:
@@ -57,7 +66,13 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         office_phone:
  *           type: string
+ *         location:
+ *           type: string
+ *         ctc:
+ *           type: string
  *         objective:
+ *           type: string
+ *         note:
  *           type: string
  *         gender:
  *           type: string
@@ -111,6 +126,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *             company:
  *               type: string
  *             location:
+ *               type: string
+ *             position:
  *               type: string
  *             start_date:
  *               type: string
@@ -261,18 +278,21 @@ exports.hrProfilePhotoUpload = hrProfilePhotoUpload;
  *           schema:
  *             $ref: '#/components/schemas/HrProfile'
  *             example:
+ *               hr_profile: 1
  *               hr_profile_type_id: null
  *               first_name: Vignesh
  *               last_name: Vicky
  *               middle_name:
- *               position: Junior Developer
  *               email_id: demouser@demo.com
  *               alternate_email_id: null
  *               mobile: 9874512300
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               location:
+ *               ctc:
  *               objective: Passionate and Hard working individual and a great Team player
+ *               note:
  *               gender: M
  *               date_of_birth:
  *               resume_url: null
@@ -296,6 +316,7 @@ exports.hrProfilePhotoUpload = hrProfilePhotoUpload;
  *                 - Javascript
  *               work_experience:
  *                 - company: Test IT
+ *                   position: Software Developer
  *                   location: Chennai
  *                   start_date: 2019-08-15
  *                   end_date: null
@@ -358,14 +379,16 @@ exports.hrProfileAdd = hrProfileAdd;
  *               first_name: Vignesh
  *               last_name: Vicky
  *               middle_name:
- *               position: Junior Developer
  *               email_id: demouser@demo.com
  *               alternate_email_id: null
  *               mobile: 9874512300
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               location:
+ *               ctc:
  *               objective: Passionate and Hard working individual and a great Team player
+ *               note:
  *               gender: M
  *               date_of_birth:
  *               resume_url: null
@@ -393,6 +416,7 @@ exports.hrProfileAdd = hrProfileAdd;
  *               work_experience:
  *                 - company: Test IT
  *                   location: Chennai
+ *                   position: Software Developer
  *                   start_date: 2019-08-15
  *                   end_date: null
  *                   description: Worked as a frontend developer
@@ -419,13 +443,20 @@ const hrProfileUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
     try {
         (0, validations_1.validateUpdateHrProfileInput)(req);
         const solrCore = SOLR_CORE_PREFIX + req.headers.tenantId;
-        const hrProfile = new HrProfile_1.default(req.body);
-        const data = {
-            "update": {
-                "doc": Object.assign({ "id": hrProfile.id }, hrProfile)
-            }
+        const _c = req.body, { id, user_id, _version_ } = _c, updateValues = __rest(_c, ["id", "user_id", "_version_"]);
+        const hrProfile = new HrProfile_1.default(updateValues);
+        let updatePayload = {
+            id: id,
+            user_id: user_id
         };
-        yield axios_1.default.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+        for (const prop in updateValues) {
+            updatePayload[prop] = { set: hrProfile[prop] };
+        }
+        const data = {
+            add: { doc: updatePayload },
+            commit: {},
+        };
+        const response = yield axios_1.default.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
         res.status(httpStatusCode_1.default.OK).json({ message: "Profile Updated Successfully" });
     }
     catch (error) {

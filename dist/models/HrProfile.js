@@ -9,14 +9,16 @@ class HrProfile {
         this.first_name = data.first_name;
         this.last_name = data.last_name;
         this.middle_name = data.middle_name;
-        this.position = data.position;
         this.email_id = data.email_id;
         this.alternate_email_id = data.alternate_email_id;
         this.mobile = data.mobile;
         this.alternate_mobile = data.alternate_mobile;
         this.phone = data.phone;
         this.office_phone = data.office_phone;
+        this.location = data.location;
+        this.ctc = data.ctc;
         this.objective = data.objective;
+        this.note = data.note;
         this.gender = data.gender;
         this.date_of_birth = data.date_of_birth;
         this.resume_url = data.resume_url;

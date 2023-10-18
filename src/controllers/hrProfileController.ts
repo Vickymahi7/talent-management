@@ -44,6 +44,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         office_phone:
  *           type: string
+ *         location:
+ *           type: string
  *         ctc:
  *           type: string
  *         objective:
@@ -265,6 +267,7 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *           schema:
  *             $ref: '#/components/schemas/HrProfile'
  *             example:
+ *               hr_profile: 1
  *               hr_profile_type_id: null
  *               first_name: Vignesh
  *               last_name: Vicky
@@ -275,6 +278,7 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               location:
  *               ctc:
  *               objective: Passionate and Hard working individual and a great Team player
  *               note: 
@@ -372,6 +376,7 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               location:
  *               ctc:
  *               objective: Passionate and Hard working individual and a great Team player
  *               note:
@@ -429,19 +434,22 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
   try {
     validateUpdateHrProfileInput(req);
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const { id, user_id, _version_, ...updateValues } = req.body;
 
-    const hrProfile = new HrProfile(req.body);
-
-    const updateFields = {
-      set: hrProfile,
-    };
+    const hrProfile = new HrProfile(updateValues);
+    let updatePayload = {
+      id: id,
+      user_id: user_id
+    }
+    for (const prop in updateValues) {
+      updatePayload[prop] = { set: hrProfile[prop] };
+    }
 
     const data = {
-      add: { doc: { id: hrProfile.id, ...updateFields } },
+      add: { doc: updatePayload },
       commit: {},
     };
-
-    await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+    const response = await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
     res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
   } catch (error) {

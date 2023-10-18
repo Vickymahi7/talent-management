@@ -12,6 +12,7 @@ export default class HrProfile {
   alternate_mobile?: string;
   phone?: string;
   office_phone?: string;
+  location?: string;
   ctc?: string;
   objective?: string;
   note?: string;
@@ -55,6 +56,7 @@ export default class HrProfile {
     this.alternate_mobile = data.alternate_mobile;
     this.phone = data.phone;
     this.office_phone = data.office_phone;
+    this.location = data.location;
     this.ctc = data.ctc;
     this.objective = data.objective;
     this.note = data.note;
