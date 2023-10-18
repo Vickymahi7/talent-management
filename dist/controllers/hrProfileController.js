@@ -12,14 +12,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSolrCore = exports.hrProfileUpdate = exports.hrProfilePhotoUpload = exports.hrProfileDelete = exports.hrProfileAdd = exports.getHrProfileList = void 0;
+exports.hrProfileUpdate = exports.hrProfilePhotoUpload = exports.hrProfileDelete = exports.hrProfileAdd = exports.getHrProfileList = void 0;
 const axios_1 = __importDefault(require("axios"));
 const httpStatusCode_1 = __importDefault(require("../utils/httpStatusCode"));
 const errors_1 = require("../utils/errors");
 const hrProfileList_json_1 = __importDefault(require("../models/hrProfileList.json"));
-const dotenv_1 = require("dotenv");
+const HrProfile_1 = __importDefault(require("../models/HrProfile"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const validations_1 = require("../validations/validations");
-(0, dotenv_1.config)();
+dotenv_1.default.config();
 let hrProfileList = hrProfileList_json_1.default;
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
 const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
@@ -56,6 +57,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         office_phone:
  *           type: string
+ *         objective:
+ *           type: string
  *         gender:
  *           type: string
  *         date_of_birth:
@@ -64,7 +67,7 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         photo_url:
  *           type: string
- *         buiding_:
+ *         buiding_number:
  *           type: string
  *         street_name:
  *           type: string
@@ -159,18 +162,35 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *     tags: [HR Profile]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: email_id
+ *         description: search Email Id
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: skills
+ *         description: Search skills
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: OK.
  */
 const getHrProfileList = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const { email_id, skills } = req.query;
+        const field1 = `email_id:${email_id}`;
+        const field2 = `skills:${skills}`;
+        let query = "*:*";
+        if (email_id && skills) {
+            query = `${field1} AND ${field2}`;
+        }
+        else if (email_id || skills) {
+            query = email_id ? `${field1}` : field2;
+        }
         const solrCore = SOLR_CORE_PREFIX + req.headers.tenantId;
-        const params = {
-            q: '*:*',
-            wt: 'json',
-        };
-        let response = yield axios_1.default.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params });
+        let response = yield axios_1.default.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query } });
         const hrProfileList = response.data.response.docs.map((data) => (Object.assign(Object.assign({}, data), { work_experience: data.work_experience ? JSON.parse(data.work_experience) : [], project: data.project ? JSON.parse(data.project) : [], education: data.education ? JSON.parse(data.education) : [], skills: data.skills ? JSON.parse(data.skills) : [] })));
         res.status(httpStatusCode_1.default.OK).json({ hrProfileList });
     }
@@ -252,6 +272,7 @@ exports.hrProfilePhotoUpload = hrProfilePhotoUpload;
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               objective: Passionate and Hard working individual and a great Team player
  *               gender: M
  *               date_of_birth:
  *               resume_url: null
@@ -299,16 +320,13 @@ exports.hrProfilePhotoUpload = hrProfilePhotoUpload;
  *         description: Created.
  */
 const hrProfileAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     try {
         (0, validations_1.validateAddHrProfileInput)(req);
-        const currentUserId = req.headers.userId;
-        const tenantId = req.headers.tenantId;
+        const currentUserId = (_a = req.headers.userId) === null || _a === void 0 ? void 0 : _a.toString();
+        const tenantId = (_b = req.headers.tenantId) === null || _b === void 0 ? void 0 : _b.toString();
         const solrCore = SOLR_CORE_PREFIX + tenantId;
-        const hrProfile = req.body;
-        hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
-        hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
-        hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
-        hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+        const hrProfile = new HrProfile_1.default(req.body);
         hrProfile.user_id = currentUserId;
         hrProfile.tenant_id = tenantId;
         hrProfile.created_by_id = currentUserId;
@@ -347,6 +365,7 @@ exports.hrProfileAdd = hrProfileAdd;
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               objective: Passionate and Hard working individual and a great Team player
  *               gender: M
  *               date_of_birth:
  *               resume_url: null
@@ -400,13 +419,9 @@ const hrProfileUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
     try {
         (0, validations_1.validateUpdateHrProfileInput)(req);
         const solrCore = SOLR_CORE_PREFIX + req.headers.tenantId;
-        const hrProfile = req.body;
-        hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
-        hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
-        hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
-        hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+        const hrProfile = new HrProfile_1.default(req.body);
         const data = {
-            "add": {
+            "update": {
                 "doc": Object.assign({ "id": hrProfile.id }, hrProfile)
             }
         };
@@ -441,10 +456,8 @@ const hrProfileDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
         const solrCore = SOLR_CORE_PREFIX + req.headers.tenantId;
         let docId = req.params.id;
         if (!docId) {
-            throw new errors_1.HttpBadRequest("Profile Id is required");
+            throw new errors_1.HttpBadRequest("Id is required");
         }
-        const queryToDeleteDoc = `id:${docId}`;
-        console.log(queryToDeleteDoc);
         const data = {
             delete: {
                 id: docId,
@@ -458,18 +471,3 @@ const hrProfileDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 exports.hrProfileDelete = hrProfileDelete;
-function createSolrCore(tenantId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const coreName = SOLR_CORE_PREFIX + tenantId;
-            const configSet = "talent_management_configs";
-            const createCoreUrl = `${SOLR_BASE_URL}/admin/cores?action=CREATE&name=${coreName}&configSet=${configSet}&wt=json`;
-            const response = yield axios_1.default.post(createCoreUrl);
-            return response.data;
-        }
-        catch (error) {
-            throw new errors_1.HttpInternalServerError(`Something went wrong!`);
-        }
-    });
-}
-exports.createSolrCore = createSolrCore;

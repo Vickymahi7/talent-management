@@ -1,13 +1,12 @@
-const PORT: number | string = process.env.PORT || 3000;
 import cors from 'cors';
 import express, { Application } from 'express';
-const app: Application = express();
-import { config } from 'dotenv';
-
 import routeHandler from './routes/routeHandler';
 import errorHandler from './middlewares/errorHandlerMiddleware';
 import notFoundHandler from './middlewares/notFoundHandlerMiddleware';
-config();
+import dotenv from 'dotenv';
+dotenv.config();
+const app: Application = express();
+const PORT: number | string = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());

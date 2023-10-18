@@ -12,28 +12,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runTransaction = void 0;
-const dbConnection_1 = __importDefault(require("../database/dbConnection"));
-const runTransaction = (callback) => __awaiter(void 0, void 0, void 0, function* () {
-    let connection;
+exports.createSolrCore = void 0;
+const axios_1 = __importDefault(require("axios"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const errors_1 = require("../utils/errors");
+dotenv_1.default.config();
+const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
+const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
+const createSolrCore = (tenantId) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        connection = yield dbConnection_1.default.getConnection();
-        yield connection.beginTransaction();
-        const result = yield callback(connection);
-        yield connection.commit();
-        return result;
+        const coreName = SOLR_CORE_PREFIX + tenantId;
+        const configSet = "talent_management_configs";
+        const createCoreUrl = `${SOLR_BASE_URL}/admin/cores?action=CREATE&name=${coreName}&configSet=${configSet}&wt=json`;
+        const response = yield axios_1.default.post(createCoreUrl);
+        return response.data;
     }
     catch (error) {
-        if (connection) {
-            yield connection.rollback();
-            console.error('Transaction Rolledback...!');
-        }
-        throw error;
-    }
-    finally {
-        if (connection) {
-            connection.release();
-        }
+        throw new errors_1.HttpInternalServerError(`Something went wrong!`);
     }
 });
-exports.runTransaction = runTransaction;
+exports.createSolrCore = createSolrCore;

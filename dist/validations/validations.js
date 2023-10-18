@@ -69,9 +69,6 @@ const validateAddHrProfileInput = (req) => {
     if (!req.body.email_id) {
         throw new errors_1.HttpBadRequest('Email ID is required');
     }
-    if (!req.body.user_id) {
-        throw new errors_1.HttpBadRequest('User ID is required');
-    }
 };
 exports.validateAddHrProfileInput = validateAddHrProfileInput;
 const validateUpdateHrProfileInput = (req) => {

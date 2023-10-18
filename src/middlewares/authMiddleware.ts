@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { HttpForbidden, HttpUnauthorized } from '../utils/errors';
-import { config } from 'dotenv';
+import dotenv from 'dotenv';
 
-config();
+dotenv.config();
 
 const checkUserAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -19,7 +19,6 @@ const checkUserAuth = (req: Request, res: Response, next: NextFunction) => {
         const tenantId = (decodedToken as jwt.JwtPayload).tenant_id;
         req.headers.userId = userId;
         req.headers.tenantId = tenantId;
-        console.log(userId, tenantId)
         next();
       }
     });

@@ -14,14 +14,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.userView = exports.userUpdate = exports.userLogin = exports.userDelete = exports.userAdd = exports.getUserList = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
-const dotenv_1 = require("dotenv");
+const dotenv_1 = __importDefault(require("dotenv"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const dbConnection_1 = __importDefault(require("../database/dbConnection"));
+// import db from '../database/dbConnection';
+const typeorm_1 = require("typeorm");
+const data_source_1 = require("../data-source");
+const User_1 = __importDefault(require("../models/User"));
 const errors_1 = require("../utils/errors");
 const httpStatusCode_1 = __importDefault(require("../utils/httpStatusCode"));
 const validations_1 = require("../validations/validations");
 const userFunctions_1 = require("../helperFunctions/userFunctions");
-(0, dotenv_1.config)();
+dotenv_1.default.config();
 /**
  * @swagger
  * tags:
@@ -46,7 +49,7 @@ const userFunctions_1 = require("../helperFunctions/userFunctions");
  *               - email_id
  *               - password
  *             example:
- *               email_id: demouser@demo.com
+ *               email_id: superadmin@demo.com
  *               password: demo123
  *     responses:
  *       200:
@@ -63,9 +66,10 @@ const userLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, function
     try {
         const { email_id, password } = req.body;
         (0, validations_1.validateLoginInput)(email_id, password);
-        const [existingUsers] = yield dbConnection_1.default.query("SELECT user_id,tenant_id,password FROM user WHERE email_id = ?", [email_id]);
-        if (Array.isArray(existingUsers) && existingUsers.length > 0) {
-            const user = existingUsers[0];
+        const user = yield data_source_1.db.findOne(User_1.default, {
+            where: { email_id: email_id },
+        });
+        if (user) {
             const isPaswordMatched = yield bcrypt_1.default.compare(password, user.password);
             if (isPaswordMatched) {
                 const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
@@ -131,7 +135,6 @@ const userAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
         let user = req.body;
         (0, validations_1.validateAddUserInput)(user);
         const response = yield (0, userFunctions_1.createUser)(user);
-        const resHeader = response[0];
         res.status(httpStatusCode_1.default.CREATED).json({ message: "User Created Successfully" });
     }
     catch (error) {
@@ -154,7 +157,9 @@ exports.userAdd = userAdd;
 const getUserList = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const tenantId = req.headers.tenantId;
-        const [userList] = yield dbConnection_1.default.query("SELECT * FROM user WHERE tenant_id = ?", [tenantId]);
+        const userList = yield data_source_1.db.find(User_1.default, {
+            where: { tenant_id: parseInt(tenantId) },
+        });
         res.status(httpStatusCode_1.default.OK).json({ userList });
     }
     catch (error) {
@@ -208,20 +213,26 @@ const userUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     try {
         const user = req.body;
         (0, validations_1.validateUpdateUserInput)(user);
-        const [existingUsers] = yield dbConnection_1.default.query("SELECT * FROM user WHERE user_id = ?", [user.user_id]);
-        if (Array.isArray(existingUsers) && existingUsers.length > 0) {
-            const existingUser = existingUsers[0];
-            if (existingUser.email_id != user.email_id) {
-                const [existingEamil] = yield dbConnection_1.default.query("SELECT * FROM user WHERE email_id = ? And user_id != ?", [user.email_id, user.user_id]);
-                if (Array.isArray(existingEamil) && existingEamil.length > 0) {
-                    throw new errors_1.HttpConflict("User already exists for this email");
-                }
-            }
-            const response = yield dbConnection_1.default.query("UPDATE user SET user_type_id=?,user_name=?,email_id=?,user_status_id=?,active=?,last_updated_dt=? Where user_id = ?", [user.user_type_id, user.user_name, user.email_id, user.user_status_id, user.active, new Date(), user.user_id]);
-            res.status(httpStatusCode_1.default.OK).json({ message: "User Updated Successfully" });
+        const isEmailExists = yield data_source_1.db.findOne(User_1.default, {
+            where: { email_id: user.email_id, user_id: (0, typeorm_1.Not)(user.user_id) },
+        });
+        if (isEmailExists) {
+            throw new errors_1.HttpConflict("User already exists for this email");
         }
         else {
-            throw new errors_1.HttpNotFound("User Not Found");
+            const response = yield data_source_1.db.update(User_1.default, user.user_id, {
+                user_type_id: user.user_type_id,
+                user_name: user.user_name,
+                email_id: user.email_id,
+                user_status_id: user.user_status_id,
+                active: user.active,
+            });
+            if (response.affected && response.affected > 0) {
+                res.status(httpStatusCode_1.default.OK).json({ message: "User Updated Successfully" });
+            }
+            else {
+                throw new errors_1.HttpNotFound("User not found");
+            }
         }
     }
     catch (error) {
@@ -254,8 +265,9 @@ const userView = (req, res, next) => __awaiter(void 0, void 0, void 0, function*
             throw new errors_1.HttpBadRequest("User Id is required");
         }
         else {
-            const [userList] = yield dbConnection_1.default.query("SELECT * FROM user WHERE user_id = ?", (userId));
-            const user = userList[0];
+            const user = yield data_source_1.db.findOne(User_1.default, {
+                where: { user_id: parseInt(userId) },
+            });
             if (user) {
                 res.status(httpStatusCode_1.default.OK).json({ user });
             }
@@ -294,9 +306,8 @@ const userDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
             throw new errors_1.HttpBadRequest("User Id is required");
         }
         else {
-            const [response] = yield dbConnection_1.default.query("Delete FROM user WHERE user_id = ?", (userId));
-            const resHeader = response;
-            if (resHeader.affectedRows > 0) {
+            const response = yield data_source_1.db.delete(User_1.default, userId);
+            if (response.affected && response.affected > 0) {
                 res.status(httpStatusCode_1.default.OK).json({ message: "User Deleted Successfully" });
             }
             else {

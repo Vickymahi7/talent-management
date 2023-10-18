@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { HttpBadRequest } from '../utils/errors';
-import Tenant from '../models/tenantModel';
-import User from '../models/userModel';
+import Tenant from '../models/Tenant';
+import User from '../models/User';
 
 export const validateAddTenantInput = (tenant: Tenant): void => {
   if (!tenant.name) {
@@ -71,9 +71,6 @@ export const validatePhotoUpload = (req: Request): void => {
 export const validateAddHrProfileInput = (req: Request): void => {
   if (!req.body.email_id) {
     throw new HttpBadRequest('Email ID is required');
-  }
-  if (!req.body.user_id) {
-    throw new HttpBadRequest('User ID is required');
   }
 };
 

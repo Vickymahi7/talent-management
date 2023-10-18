@@ -1,14 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
-import { ResultSetHeader } from 'mysql2';
-import db from '../database/dbConnection';
-import User from '../models/userModel';
-import Tenant from '../models/tenantModel';
+import { db } from '../data-source';
+import User from '../models/User';
+import Tenant from '../models/Tenant';
 import { HttpBadRequest, HttpNotFound } from '../utils/errors';
 import HttpStatusCode from '../utils/httpStatusCode';
 import { validateAddUserInput, validateAddTenantInput, validateUpdateTenantInput } from '../validations/validations';
 import { createUser } from '../helperFunctions/userFunctions';
-import { createSolrCore } from './hrProfileController';
-import { runTransaction } from '../database/dbTransactions';
+import { createSolrCore } from '../helperFunctions/hrProfleFunctions';
 
 /**
  * @swagger
@@ -66,23 +64,22 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
 
     validateAddTenantInput(tenant);
 
-    const currentUserId = req.headers.userId;
+    const currentUserId = req.headers.userId as string;
 
-    // handle transaction
-    await runTransaction(async (connection) => {
+    // handling transaction
+    await db.transaction(async (transactionalEntityManager) => {
 
-      const response = await connection.query(
-        "INSERT INTO tenant (name,tenant_type_id,description,location,active,created_by_id,created_dt,last_updated_dt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-        [tenant.name, tenant.tenant_type_id, tenant.description, tenant.location, true, currentUserId, new Date(), new Date()]
-      );
-      const resHeader = response[0] as ResultSetHeader;
+      tenant.active = true;
+      tenant.created_by_id = parseInt(currentUserId);
 
-      user.tenant_id = resHeader.insertId;
+      const response = await transactionalEntityManager.save(Tenant, tenant);
+
+      user.tenant_id = response.tenant_id;
       user.user_type_id = 2;  // set user type as Admin
 
       validateAddUserInput(user);
-      await createUser(user, connection);
-      await createSolrCore(resHeader.insertId);
+      await createUser(user, transactionalEntityManager);
+      await createSolrCore(response.tenant_id!);
       res.status(HttpStatusCode.CREATED).json({ message: "Tenant Created Successfully" });
     });
 
@@ -105,9 +102,11 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
 */
 const getTenantList = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const tenantId = req.headers.tenantId;
+    const tenantId = req.headers.tenantId as string;
 
-    const [tenantList] = await db.query("SELECT * FROM tenant WHERE tenant_id = ?", [tenantId]);
+    const tenantList = await db.find(Tenant, {
+      where: { tenant_id: parseInt(tenantId) },
+    });
     res.status(HttpStatusCode.OK).json({ tenantList });
   } catch (error) {
     next(error);
@@ -161,16 +160,22 @@ const tenantUpdate = async (req: Request, res: Response, next: NextFunction) => 
 
     validateUpdateTenantInput(tenant);
 
-    const [existingTenants] = await db.query("SELECT * FROM tenant WHERE tenant_id = ?", [tenant.tenant_id]);
-    if (Array.isArray(existingTenants) && existingTenants.length > 0) {
-      const existingTenant: Tenant = existingTenants[0] as Tenant;
+    const existingTenant = await db.findOne(Tenant, {
+      where: { tenant_id: tenant.tenant_id },
+    });
+    if (existingTenant) {
 
-      const response = await db.query(
-        "UPDATE tenant SET name=?,tenant_type_id=?,description=?,location=?,active=?,last_updated_dt=? Where tenant_id = ?",
-        [tenant.name, tenant.tenant_type_id, tenant.description, tenant.location, tenant.active, new Date(), tenant.tenant_id]
-      );
+      const response = await db.update(Tenant, tenant.tenant_id, {
+        name: tenant.name,
+        tenant_type_id: tenant.tenant_type_id,
+        description: tenant.description,
+        location: tenant.location,
+        active: tenant.active,
+      });
 
-      res.status(HttpStatusCode.OK).json({ message: "Tenant Updated Successfully" });
+      if (response.affected && response.affected > 0) {
+        res.status(HttpStatusCode.OK).json({ message: "Tenant Updated Successfully" });
+      }
     }
     else {
       throw new HttpNotFound("Tenant Not Found");
@@ -205,8 +210,9 @@ const tenantView = async (req: Request, res: Response, next: NextFunction) => {
       throw new HttpBadRequest("Tenant Id is required");
     }
     else {
-      const [tenantList] = await db.query("SELECT * FROM tenant WHERE tenant_id = ?", (tenantId));
-      const tenant: Tenant = tenantList[0];
+      const tenant = await db.findOne(Tenant, {
+        where: { tenant_id: parseInt(tenantId) },
+      });
       if (tenant) {
         res.status(HttpStatusCode.OK).json({ tenant });
       }
@@ -244,9 +250,8 @@ const tenantDelete = async (req: Request, res: Response, next: NextFunction) => 
       throw new HttpBadRequest("Tenant Id is required");
     }
     else {
-      const [response] = await db.query("Delete FROM tenant WHERE tenant_id = ?", (tenantId));
-      const resHeader = response as ResultSetHeader;
-      if (resHeader.affectedRows > 0) {
+      const response = await db.delete(Tenant, tenantId);
+      if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({ message: "Tenant Deleted Successfully" });
       }
       else {

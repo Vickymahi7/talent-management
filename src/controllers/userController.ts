@@ -1,16 +1,18 @@
 import bcrypt from 'bcrypt';
-import { config } from 'dotenv';
+import dotenv from 'dotenv';
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { ResultSetHeader } from 'mysql2';
-import db from '../database/dbConnection';
-import User from '../models/userModel';
+// import db from '../database/dbConnection';
+import { Not } from 'typeorm';
+import { db } from '../data-source';
+import User from '../models/User';
 import { HttpBadRequest, HttpConflict, HttpNotFound, HttpUnauthorized } from '../utils/errors';
 import HttpStatusCode from '../utils/httpStatusCode';
 import { validateAddUserInput, validateLoginInput, validateUpdateUserInput } from '../validations/validations';
 import { createUser } from '../helperFunctions/userFunctions';
 
-config();
+dotenv.config();
 
 /**
  * @swagger
@@ -36,7 +38,7 @@ config();
  *               - email_id
  *               - password
  *             example:
- *               email_id: demouser@demo.com
+ *               email_id: superadmin@demo.com
  *               password: demo123
  *     responses:
  *       200:
@@ -54,9 +56,10 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
     const { email_id, password } = req.body;
     validateLoginInput(email_id, password);
 
-    const [existingUsers] = await db.query("SELECT user_id,tenant_id,password FROM user WHERE email_id = ?", [email_id]);
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
-      const user: User = existingUsers[0] as User;
+    const user = await db.findOne(User, {
+      where: { email_id: email_id },
+    });
+    if (user) {
       const isPaswordMatched = await bcrypt.compare(password, user.password!);
       if (isPaswordMatched) {
         const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!
@@ -124,7 +127,6 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
     validateAddUserInput(user);
 
     const response = await createUser(user);
-    const resHeader = response[0] as ResultSetHeader;
 
     res.status(HttpStatusCode.CREATED).json({ message: "User Created Successfully" });
   } catch (error) {
@@ -146,9 +148,10 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
  */
 const getUserList = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const tenantId = req.headers.tenantId;
-
-    const [userList] = await db.query("SELECT * FROM user WHERE tenant_id = ?", [tenantId]);
+    const tenantId = req.headers.tenantId as string;
+    const userList = await db.find(User, {
+      where: { tenant_id: parseInt(tenantId) },
+    });
     res.status(HttpStatusCode.OK).json({ userList });
   } catch (error) {
     next(error);
@@ -203,26 +206,28 @@ const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
 
     validateUpdateUserInput(user);
 
-    const [existingUsers] = await db.query("SELECT * FROM user WHERE user_id = ?", [user.user_id]);
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
-      const existingUser: User = existingUsers[0] as User;
-
-      if (existingUser.email_id != user.email_id) {
-
-        const [existingEamil] = await db.query("SELECT * FROM user WHERE email_id = ? And user_id != ?", [user.email_id, user.user_id]);
-        if (Array.isArray(existingEamil) && existingEamil.length > 0) {
-          throw new HttpConflict("User already exists for this email");
-        }
-      }
-      const response = await db.query(
-        "UPDATE user SET user_type_id=?,user_name=?,email_id=?,user_status_id=?,active=?,last_updated_dt=? Where user_id = ?",
-        [user.user_type_id, user.user_name, user.email_id, user.user_status_id, user.active, new Date(), user.user_id]
-      );
-
-      res.status(HttpStatusCode.OK).json({ message: "User Updated Successfully" });
+    const isEmailExists = await db.findOne(User, {
+      where: { email_id: user.email_id, user_id: Not(user.user_id!) },
+    });
+    if (isEmailExists) {
+      throw new HttpConflict("User already exists for this email");
     }
     else {
-      throw new HttpNotFound("User Not Found");
+      const response = await db.update(User, user.user_id, {
+        user_type_id: user.user_type_id,
+        user_name: user.user_name,
+        email_id: user.email_id,
+        user_status_id: user.user_status_id,
+        active: user.active,
+      })
+
+      if (response.affected && response.affected > 0) {
+        res.status(HttpStatusCode.OK).json({ message: "User Updated Successfully" });
+      }
+      else {
+        throw new HttpNotFound("User not found");
+      }
+
     }
   } catch (error) {
     next(error);
@@ -254,8 +259,9 @@ const userView = async (req: Request, res: Response, next: NextFunction) => {
       throw new HttpBadRequest("User Id is required");
     }
     else {
-      const [userList] = await db.query("SELECT * FROM user WHERE user_id = ?", (userId));
-      const user: User = userList[0];
+      const user = await db.findOne(User, {
+        where: { user_id: parseInt(userId) },
+      });
       if (user) {
         res.status(HttpStatusCode.OK).json({ user });
       }
@@ -293,9 +299,8 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
       throw new HttpBadRequest("User Id is required");
     }
     else {
-      const [response] = await db.query("Delete FROM user WHERE user_id = ?", (userId));
-      const resHeader = response as ResultSetHeader;
-      if (resHeader.affectedRows > 0) {
+      const response = await db.delete(User, userId);
+      if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({ message: "User Deleted Successfully" });
       }
       else {

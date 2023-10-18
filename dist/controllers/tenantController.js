@@ -13,13 +13,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tenantView = exports.tenantUpdate = exports.tenantDelete = exports.tenantAdd = exports.getTenantList = void 0;
-const dbConnection_1 = __importDefault(require("../database/dbConnection"));
+const data_source_1 = require("../data-source");
+const Tenant_1 = __importDefault(require("../models/Tenant"));
 const errors_1 = require("../utils/errors");
 const httpStatusCode_1 = __importDefault(require("../utils/httpStatusCode"));
 const validations_1 = require("../validations/validations");
 const userFunctions_1 = require("../helperFunctions/userFunctions");
-const hrProfileController_1 = require("./hrProfileController");
-const dbTransactions_1 = require("../database/dbTransactions");
+const hrProfleFunctions_1 = require("../helperFunctions/hrProfleFunctions");
 /**
  * @swagger
  * tags:
@@ -75,15 +75,16 @@ const tenantAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         const user = req.body;
         (0, validations_1.validateAddTenantInput)(tenant);
         const currentUserId = req.headers.userId;
-        // handle transaction
-        yield (0, dbTransactions_1.runTransaction)((connection) => __awaiter(void 0, void 0, void 0, function* () {
-            const response = yield connection.query("INSERT INTO tenant (name,tenant_type_id,description,location,active,created_by_id,created_dt,last_updated_dt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", [tenant.name, tenant.tenant_type_id, tenant.description, tenant.location, true, currentUserId, new Date(), new Date()]);
-            const resHeader = response[0];
-            user.tenant_id = resHeader.insertId;
+        // handling transaction
+        yield data_source_1.db.transaction((transactionalEntityManager) => __awaiter(void 0, void 0, void 0, function* () {
+            tenant.active = true;
+            tenant.created_by_id = parseInt(currentUserId);
+            const response = yield transactionalEntityManager.save(Tenant_1.default, tenant);
+            user.tenant_id = response.tenant_id;
             user.user_type_id = 2; // set user type as Admin
             (0, validations_1.validateAddUserInput)(user);
-            yield (0, userFunctions_1.createUser)(user, connection);
-            yield (0, hrProfileController_1.createSolrCore)(resHeader.insertId);
+            yield (0, userFunctions_1.createUser)(user, transactionalEntityManager);
+            yield (0, hrProfleFunctions_1.createSolrCore)(response.tenant_id);
             res.status(httpStatusCode_1.default.CREATED).json({ message: "Tenant Created Successfully" });
         }));
     }
@@ -107,7 +108,9 @@ exports.tenantAdd = tenantAdd;
 const getTenantList = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const tenantId = req.headers.tenantId;
-        const [tenantList] = yield dbConnection_1.default.query("SELECT * FROM tenant WHERE tenant_id = ?", [tenantId]);
+        const tenantList = yield data_source_1.db.find(Tenant_1.default, {
+            where: { tenant_id: parseInt(tenantId) },
+        });
         res.status(httpStatusCode_1.default.OK).json({ tenantList });
     }
     catch (error) {
@@ -160,11 +163,20 @@ const tenantUpdate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
     try {
         const tenant = req.body;
         (0, validations_1.validateUpdateTenantInput)(tenant);
-        const [existingTenants] = yield dbConnection_1.default.query("SELECT * FROM tenant WHERE tenant_id = ?", [tenant.tenant_id]);
-        if (Array.isArray(existingTenants) && existingTenants.length > 0) {
-            const existingTenant = existingTenants[0];
-            const response = yield dbConnection_1.default.query("UPDATE tenant SET name=?,tenant_type_id=?,description=?,location=?,active=?,last_updated_dt=? Where tenant_id = ?", [tenant.name, tenant.tenant_type_id, tenant.description, tenant.location, tenant.active, new Date(), tenant.tenant_id]);
-            res.status(httpStatusCode_1.default.OK).json({ message: "Tenant Updated Successfully" });
+        const existingTenant = yield data_source_1.db.findOne(Tenant_1.default, {
+            where: { tenant_id: tenant.tenant_id },
+        });
+        if (existingTenant) {
+            const response = yield data_source_1.db.update(Tenant_1.default, tenant.tenant_id, {
+                name: tenant.name,
+                tenant_type_id: tenant.tenant_type_id,
+                description: tenant.description,
+                location: tenant.location,
+                active: tenant.active,
+            });
+            if (response.affected && response.affected > 0) {
+                res.status(httpStatusCode_1.default.OK).json({ message: "Tenant Updated Successfully" });
+            }
         }
         else {
             throw new errors_1.HttpNotFound("Tenant Not Found");
@@ -200,8 +212,9 @@ const tenantView = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
             throw new errors_1.HttpBadRequest("Tenant Id is required");
         }
         else {
-            const [tenantList] = yield dbConnection_1.default.query("SELECT * FROM tenant WHERE tenant_id = ?", (tenantId));
-            const tenant = tenantList[0];
+            const tenant = yield data_source_1.db.findOne(Tenant_1.default, {
+                where: { tenant_id: parseInt(tenantId) },
+            });
             if (tenant) {
                 res.status(httpStatusCode_1.default.OK).json({ tenant });
             }
@@ -240,9 +253,8 @@ const tenantDelete = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             throw new errors_1.HttpBadRequest("Tenant Id is required");
         }
         else {
-            const [response] = yield dbConnection_1.default.query("Delete FROM tenant WHERE tenant_id = ?", (tenantId));
-            const resHeader = response;
-            if (resHeader.affectedRows > 0) {
+            const response = yield data_source_1.db.delete(Tenant_1.default, tenantId);
+            if (response.affected && response.affected > 0) {
                 res.status(httpStatusCode_1.default.OK).json({ message: "Tenant Deleted Successfully" });
             }
             else {

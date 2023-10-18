@@ -3,10 +3,10 @@ import axios, { AxiosResponse } from 'axios';
 import HttpStatusCode from '../utils/httpStatusCode';
 import { HttpNotFound, HttpBadRequest, HttpInternalServerError } from '../utils/errors';
 import hrProfileListData from "../models/hrProfileList.json";
-import HrProfile from "../models/hrProfileModel";
-import { config } from "dotenv";
+import HrProfile from "../models/HrProfile";
+import dotenv from "dotenv";
 import { validatePhotoUpload, validateAddHrProfileInput, validateUpdateHrProfileInput } from "../validations/validations";
-config();
+dotenv.config();
 
 let hrProfileList: any[] = hrProfileListData;
 
@@ -32,8 +32,6 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         middle_name:
  *           type: string
- *         position:
- *           type: string
  *         email_id:
  *           type: string
  *         alternate_email_id:
@@ -46,6 +44,12 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         office_phone:
  *           type: string
+ *         ctc:
+ *           type: string
+ *         objective:
+ *           type: string
+ *         note:
+ *           type: string
  *         gender:
  *           type: string
  *         date_of_birth:
@@ -54,7 +58,7 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         photo_url:
  *           type: string
- *         buiding_:
+ *         buiding_number:
  *           type: string
  *         street_name:
  *           type: string
@@ -98,6 +102,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *             company:
  *               type: string
  *             location:
+ *               type: string
+ *             position:
  *               type: string
  *             start_date:
  *               type: string
@@ -150,21 +156,39 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *     tags: [HR Profile]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: email_id
+ *         description: search Email Id
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: skills
+ *         description: Search skills
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: OK.
  */
 const getHrProfileList = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { email_id, skills } = req.query;
+    const field1 = `email_id:${email_id}`;
+    const field2 = `skills:${skills}`;
+    let query = "*:*";
+    if (email_id && skills) {
+      query = `${field1} AND ${field2}`;
+    }
+    else if (email_id || skills) {
+      query = email_id ? `${field1}` : field2;
+    }
+
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const params = {
-      q: '*:*',
-      wt: 'json',
-    };
 
-    let response: AxiosResponse = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params })
+    let response: AxiosResponse = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query } })
 
-    const hrProfileList: HrProfile[] = response.data.response.docs.map((data: any) => ({
+    const hrProfileList = response.data.response.docs.map((data: any) => ({
       ...data,
       work_experience: data.work_experience ? JSON.parse(data.work_experience) : [],
       project: data.project ? JSON.parse(data.project) : [],
@@ -245,13 +269,15 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *               first_name: Vignesh
  *               last_name: Vicky
  *               middle_name:
- *               position: Junior Developer
  *               email_id: demouser@demo.com
  *               alternate_email_id: null
  *               mobile: 9874512300
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               ctc:
+ *               objective: Passionate and Hard working individual and a great Team player
+ *               note: 
  *               gender: M
  *               date_of_birth:
  *               resume_url: null
@@ -275,6 +301,7 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *                 - Javascript
  *               work_experience:
  *                 - company: Test IT
+ *                   position: Software Developer
  *                   location: Chennai
  *                   start_date: 2019-08-15
  *                   end_date: null
@@ -301,15 +328,12 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
 const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
     validateAddHrProfileInput(req);
-    const currentUserId = req.headers.userId as unknown as number;
-    const tenantId = req.headers.tenantId as unknown as number;
+    const currentUserId = req.headers.userId?.toString();
+    const tenantId = req.headers.tenantId?.toString();
     const solrCore = SOLR_CORE_PREFIX! + tenantId;
-    const hrProfile: HrProfile = req.body;
 
-    hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
-    hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
-    hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
-    hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+    const hrProfile = new HrProfile(req.body);
+
     hrProfile.user_id = currentUserId;
     hrProfile.tenant_id = tenantId;
     hrProfile.created_by_id = currentUserId;
@@ -342,13 +366,15 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
  *               first_name: Vignesh
  *               last_name: Vicky
  *               middle_name:
- *               position: Junior Developer
  *               email_id: demouser@demo.com
  *               alternate_email_id: null
  *               mobile: 9874512300
  *               alternate_mobile:
  *               phone:
  *               office_phone:
+ *               ctc:
+ *               objective: Passionate and Hard working individual and a great Team player
+ *               note:
  *               gender: M
  *               date_of_birth:
  *               resume_url: null
@@ -376,6 +402,7 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
  *               work_experience:
  *                 - company: Test IT
  *                   location: Chennai
+ *                   position: Software Developer
  *                   start_date: 2019-08-15
  *                   end_date: null
  *                   description: Worked as a frontend developer
@@ -402,21 +429,18 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
   try {
     validateUpdateHrProfileInput(req);
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const hrProfile: HrProfile = req.body;
 
-    hrProfile.work_experience = req.body.work_experience ? JSON.stringify(req.body.work_experience) : "";
-    hrProfile.project = req.body.project ? JSON.stringify(req.body.project) : "";
-    hrProfile.education = req.body.education ? JSON.stringify(req.body.education) : "";
-    hrProfile.skills = req.body.skills ? JSON.stringify(req.body.skills) : "";
+    const hrProfile = new HrProfile(req.body);
+
+    const updateFields = {
+      set: hrProfile,
+    };
 
     const data = {
-      "add": {
-        "doc": {
-          "id": hrProfile.id,
-          ...hrProfile
-        }
-      }
+      add: { doc: { id: hrProfile.id, ...updateFields } },
+      commit: {},
     };
+
     await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
     res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
@@ -449,10 +473,8 @@ const hrProfileDelete = async (req: Request, res: Response, next: NextFunction) 
 
     let docId = req.params.id;
     if (!docId) {
-      throw new HttpBadRequest("Profile Id is required");
+      throw new HttpBadRequest("Id is required");
     }
-    const queryToDeleteDoc = `id:${docId}`;
-    console.log(queryToDeleteDoc)
     const data = {
       delete: {
         id: docId,
@@ -466,19 +488,5 @@ const hrProfileDelete = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-async function createSolrCore(tenantId: number) {
-  try {
-    const coreName = SOLR_CORE_PREFIX! + tenantId;
-    const configSet = "talent_management_configs";
-
-    const createCoreUrl = `${SOLR_BASE_URL}/admin/cores?action=CREATE&name=${coreName}&configSet=${configSet}&wt=json`;
-
-    const response = await axios.post(createCoreUrl);
-    return response.data;
-  } catch (error) {
-    throw new HttpInternalServerError(`Something went wrong!`);
-  }
-}
-
-export { getHrProfileList, hrProfileAdd, hrProfileDelete, hrProfilePhotoUpload, hrProfileUpdate, createSolrCore };
+export { getHrProfileList, hrProfileAdd, hrProfileDelete, hrProfilePhotoUpload, hrProfileUpdate };
 

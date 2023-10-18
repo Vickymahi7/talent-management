@@ -14,8 +14,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const errors_1 = require("../utils/errors");
-const dotenv_1 = require("dotenv");
-(0, dotenv_1.config)();
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const checkUserAuth = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader ? authHeader.split(' ')[1] : '';
@@ -30,7 +30,6 @@ const checkUserAuth = (req, res, next) => {
                 const tenantId = decodedToken.tenant_id;
                 req.headers.userId = userId;
                 req.headers.tenantId = tenantId;
-                console.log(userId, tenantId);
                 next();
             }
         }));
