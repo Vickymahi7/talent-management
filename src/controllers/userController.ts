@@ -1,16 +1,14 @@
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { ResultSetHeader } from 'mysql2';
-// import db from '../database/dbConnection';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Not } from 'typeorm';
 import { db } from '../data-source';
 import User from '../models/User';
-import { HttpBadRequest, HttpConflict, HttpNotFound, HttpUnauthorized } from '../utils/errors';
+import { HttpForbidden, HttpBadRequest, HttpConflict, HttpNotFound, HttpUnauthorized } from '../utils/errors';
 import HttpStatusCode from '../utils/httpStatusCode';
 import { validateAddUserInput, validateLoginInput, validateUpdateUserInput } from '../validations/validations';
-import { createUser } from '../helperFunctions/userFunctions';
+import { createUser, generateAccessToken } from '../helperFunctions/userFunctions';
 
 dotenv.config();
 
@@ -62,10 +60,15 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
     if (user) {
       const isPaswordMatched = await bcrypt.compare(password, user.password!);
       if (isPaswordMatched) {
-        const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!
-        const accessToken = jwt.sign({ user_id: user.user_id, tenant_id: user.tenant_id }, accessTokenSecret, { expiresIn: 60 * 30 });
+        const userData = {
+          user_id: user.user_id,
+          user_type_id: user.user_type_id,
+          tenant_id: user.tenant_id
+        };
 
-        return res.status(HttpStatusCode.OK).json({ accessToken: accessToken });
+        const accessToken = generateAccessToken(userData);
+
+        return res.status(HttpStatusCode.OK).json({ accessToken });
       }
     }
     throw new HttpUnauthorized("Invalid Credentials");
@@ -90,8 +93,6 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  *           schema:
  *             type: object
  *             properties:
- *               tenant_id:
- *                 type: number
  *               user_type_id:
  *                 type: number
  *               user_name:
@@ -105,12 +106,10 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  *               active:
  *                 type: boolean
  *             required:
- *               - tenant_id
  *               - user_name
  *               - email_id
  *               - password
  *             example:
- *               tenant_id: 1
  *               user_type_id: 3
  *               user_name: Demo User
  *               password: demo123
@@ -123,7 +122,10 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  */
 const userAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const tenantId = req.headers.tenantId?.toString();
     let user: User = req.body;
+    user.tenant_id = parseInt(tenantId!);
+
     validateAddUserInput(user);
 
     const response = await createUser(user);
@@ -312,5 +314,5 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { getUserList, userAdd, userDelete, userLogin, userUpdate, userView };
+export { userLogin, getUserList, userAdd, userDelete, userUpdate, userView };
 

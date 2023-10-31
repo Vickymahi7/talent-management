@@ -185,7 +185,8 @@ const getHrProfileList = async (req: Request, res: Response, next: NextFunction)
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
 
-    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query } })
+    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query, "q.op": "AND" } })
+    const { numFound } = response.data.response;
 
     const hrProfileList = response.data.response.docs.map((data: any) => ({
       ...data,
@@ -195,7 +196,7 @@ const getHrProfileList = async (req: Request, res: Response, next: NextFunction)
       skills: data.skills ? JSON.parse(data.skills) : []
     }));
 
-    res.status(HttpStatusCode.OK).json({ hrProfileList });
+    res.status(HttpStatusCode.OK).json({ numFound, hrProfileList });
   } catch (error) {
     next(error);
   }
@@ -340,7 +341,9 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
     const tenantId = req.headers.tenantId?.toString();
     const solrCore = SOLR_CORE_PREFIX! + tenantId;
 
-    const hrProfile = new HrProfile(req.body);
+    const { id, ...otherReqData } = req.body;
+
+    const hrProfile = new HrProfile(otherReqData);
 
     hrProfile.user_id = currentUserId;
     hrProfile.tenant_id = tenantId;

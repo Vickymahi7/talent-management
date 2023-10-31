@@ -20,6 +20,7 @@ const httpStatusCode_1 = __importDefault(require("../utils/httpStatusCode"));
 const validations_1 = require("../validations/validations");
 const userFunctions_1 = require("../helperFunctions/userFunctions");
 const hrProfleFunctions_1 = require("../helperFunctions/hrProfleFunctions");
+const userTypes_1 = __importDefault(require("../utils/userTypes"));
 /**
  * @swagger
  * tags:
@@ -62,9 +63,9 @@ const hrProfleFunctions_1 = require("../helperFunctions/hrProfleFunctions");
  *               tenant_type_id: 1
  *               description: This is a description
  *               location: Delhi
- *               user_name: Demo User
+ *               user_name: Demo Tenant
+ *               email_id: demotenant@demo.com
  *               password: demo123
- *               email_id: demouser@demo.com
  *     responses:
  *       201:
  *         description: Created.
@@ -81,7 +82,7 @@ const tenantAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function
             tenant.created_by_id = parseInt(currentUserId);
             const response = yield transactionalEntityManager.save(Tenant_1.default, tenant);
             user.tenant_id = response.tenant_id;
-            user.user_type_id = 2; // set user type as Admin
+            user.user_type_id = userTypes_1.default.ADMIN;
             (0, validations_1.validateAddUserInput)(user);
             yield (0, userFunctions_1.createUser)(user, transactionalEntityManager);
             yield (0, hrProfleFunctions_1.createSolrCore)(response.tenant_id);
@@ -107,10 +108,7 @@ exports.tenantAdd = tenantAdd;
 */
 const getTenantList = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const tenantId = req.headers.tenantId;
-        const tenantList = yield data_source_1.db.find(Tenant_1.default, {
-            where: { tenant_id: parseInt(tenantId) },
-        });
+        const tenantList = yield data_source_1.db.find(Tenant_1.default);
         res.status(httpStatusCode_1.default.OK).json({ tenantList });
     }
     catch (error) {

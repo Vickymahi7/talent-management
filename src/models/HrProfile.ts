@@ -81,9 +81,9 @@ export default class HrProfile {
     this.created_by_id = data.created_by_id;
     this.created_dt = data.created_dt;
     this.last_updated_dt = data.last_updated_dt;
-    this.skills = data.skills ? JSON.stringify(data.skills) : "";
-    this.work_experience = data.work_experience ? JSON.stringify(data.work_experience) : "";
-    this.project = data.project ? JSON.stringify(data.project) : "";
-    this.education = data.education ? JSON.stringify(data.education) : "";
+    this.skills = data.skills ? JSON.stringify(data.skills) : null;
+    this.work_experience = data.work_experience ? JSON.stringify(data.work_experience) : null;
+    this.project = data.project ? JSON.stringify(data.project) : null;
+    this.education = data.education ? JSON.stringify(data.education) : null;
   }
 }

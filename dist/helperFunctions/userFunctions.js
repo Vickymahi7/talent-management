@@ -12,11 +12,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUser = void 0;
+exports.createUser = exports.generateAccessToken = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const User_1 = __importDefault(require("../models/User"));
 const data_source_1 = require("../data-source");
 const errors_1 = require("../utils/errors");
+dotenv_1.default.config();
+const generateAccessToken = (userData) => {
+    const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
+    return jsonwebtoken_1.default.sign(Object.assign({}, userData), accessTokenSecret, { expiresIn: 60 * 30 });
+};
+exports.generateAccessToken = generateAccessToken;
 const createUser = (user, dbConnection) => __awaiter(void 0, void 0, void 0, function* () {
     if (!dbConnection)
         dbConnection = data_source_1.db;

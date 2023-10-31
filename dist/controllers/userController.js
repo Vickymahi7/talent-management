@@ -12,11 +12,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userView = exports.userUpdate = exports.userLogin = exports.userDelete = exports.userAdd = exports.getUserList = void 0;
+exports.userView = exports.userUpdate = exports.userDelete = exports.userAdd = exports.getUserList = exports.userLogin = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-// import db from '../database/dbConnection';
 const typeorm_1 = require("typeorm");
 const data_source_1 = require("../data-source");
 const User_1 = __importDefault(require("../models/User"));
@@ -72,9 +70,13 @@ const userLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         if (user) {
             const isPaswordMatched = yield bcrypt_1.default.compare(password, user.password);
             if (isPaswordMatched) {
-                const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
-                const accessToken = jsonwebtoken_1.default.sign({ user_id: user.user_id, tenant_id: user.tenant_id }, accessTokenSecret, { expiresIn: 60 * 30 });
-                return res.status(httpStatusCode_1.default.OK).json({ accessToken: accessToken });
+                const userData = {
+                    user_id: user.user_id,
+                    user_type_id: user.user_type_id,
+                    tenant_id: user.tenant_id
+                };
+                const accessToken = (0, userFunctions_1.generateAccessToken)(userData);
+                return res.status(httpStatusCode_1.default.OK).json({ accessToken });
             }
         }
         throw new errors_1.HttpUnauthorized("Invalid Credentials");
@@ -99,8 +101,6 @@ exports.userLogin = userLogin;
  *           schema:
  *             type: object
  *             properties:
- *               tenant_id:
- *                 type: number
  *               user_type_id:
  *                 type: number
  *               user_name:
@@ -114,12 +114,10 @@ exports.userLogin = userLogin;
  *               active:
  *                 type: boolean
  *             required:
- *               - tenant_id
  *               - user_name
  *               - email_id
  *               - password
  *             example:
- *               tenant_id: 1
  *               user_type_id: 3
  *               user_name: Demo User
  *               password: demo123
@@ -131,8 +129,11 @@ exports.userLogin = userLogin;
  *         description: Created.
  */
 const userAdd = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
+        const tenantId = (_a = req.headers.tenantId) === null || _a === void 0 ? void 0 : _a.toString();
         let user = req.body;
+        user.tenant_id = parseInt(tenantId);
         (0, validations_1.validateAddUserInput)(user);
         const response = yield (0, userFunctions_1.createUser)(user);
         res.status(httpStatusCode_1.default.CREATED).json({ message: "User Created Successfully" });

@@ -12,6 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.requireUsers = exports.checkUserAuth = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const errors_1 = require("../utils/errors");
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -39,4 +40,24 @@ const checkUserAuth = (req, res, next) => {
         next(error);
     }
 };
-exports.default = checkUserAuth;
+exports.checkUserAuth = checkUserAuth;
+const requireUsers = (requiredTypes) => {
+    return (req, res, next) => {
+        var _a;
+        const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1];
+        try {
+            const decodedToken = jsonwebtoken_1.default.verify(token, process.env.ACCESS_TOKEN_SECRET);
+            const userTypeId = decodedToken.user_type_id;
+            if (requiredTypes.includes(userTypeId)) {
+                next();
+            }
+            else {
+                return next(new errors_1.HttpForbidden('Access Denied'));
+            }
+        }
+        catch (error) {
+            return next(new errors_1.HttpForbidden('Invalid access token'));
+        }
+    };
+};
+exports.requireUsers = requireUsers;

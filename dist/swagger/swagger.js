@@ -24,7 +24,11 @@ const options = {
             },
         },
     },
-    apis: ["./src/controllers/userController.ts", "./src/controllers/*.ts"],
+    apis: [
+        "./src/controllers/userController.ts",
+        "./src/controllers/tenantController.ts",
+        "./src/controllers/*.ts"
+    ],
 };
 const specs = swaggerJsdoc(options);
 exports.default = specs;

@@ -27,9 +27,6 @@ const validateLoginInput = (email_id, password) => {
 };
 exports.validateLoginInput = validateLoginInput;
 const validateAddUserInput = (user) => {
-    if (!user.tenant_id) {
-        throw new errors_1.HttpBadRequest('Tenant is required');
-    }
     if (!user.user_name) {
         throw new errors_1.HttpBadRequest('User name is required');
     }

@@ -31,33 +31,35 @@ const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const path_1 = __importDefault(require("path"));
 const multer_1 = __importDefault(require("multer"));
 const swagger_1 = __importDefault(require("../swagger/swagger"));
-const authMiddleware_1 = __importDefault(require("../middlewares/authMiddleware"));
+const userTypes_1 = __importDefault(require("../utils/userTypes"));
+const authMiddleware_1 = require("../middlewares/authMiddleware");
 const tenantController = __importStar(require("../controllers/tenantController"));
 const userController = __importStar(require("../controllers/userController"));
 const hrProfileController = __importStar(require("../controllers/hrProfileController"));
 const router = express_1.default.Router();
 const upload = (0, multer_1.default)({ dest: path_1.default.join('src', 'uploads') });
+const { SUPER_ADMIN, ADMIN, HR_USER } = userTypes_1.default;
 // Swagger Docs Route
 router.use('/docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swagger_1.default));
 // Login Routes
 router.post('/login', userController.userLogin);
-router.use(authMiddleware_1.default);
+router.use(authMiddleware_1.checkUserAuth);
 // Tenant Routes
-router.post('/tenant/add', tenantController.tenantAdd);
-router.get('/tenant/list', tenantController.getTenantList);
-router.put('/tenant/update', tenantController.tenantUpdate);
-router.get('/tenant/view/:id', tenantController.tenantView);
-router.delete('/tenant/delete/:id', tenantController.tenantDelete);
+router.post('/tenant/add', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN]), tenantController.tenantAdd);
+router.get('/tenant/list', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN]), tenantController.getTenantList);
+router.put('/tenant/update', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN]), tenantController.tenantUpdate);
+router.get('/tenant/view/:id', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN]), tenantController.tenantView);
+router.delete('/tenant/delete/:id', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN]), tenantController.tenantDelete);
 // User Routes
-router.post('/user/add', userController.userAdd);
-router.get('/user/list', userController.getUserList);
-router.put('/user/update', userController.userUpdate);
-router.get('/user/view/:id', userController.userView);
-router.delete('/user/delete/:id', userController.userDelete);
+router.post('/user/add', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN, ADMIN]), userController.userAdd);
+router.get('/user/list', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN, ADMIN]), userController.getUserList);
+router.put('/user/update', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN, ADMIN]), userController.userUpdate);
+router.get('/user/view/:id', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN, ADMIN]), userController.userView);
+router.delete('/user/delete/:id', (0, authMiddleware_1.requireUsers)([SUPER_ADMIN, ADMIN]), userController.userDelete);
 // HR Profile Routes
-router.get('/hrprofile/list', hrProfileController.getHrProfileList);
-router.post('/hrprofile/photoupload', upload.single('file'), hrProfileController.hrProfilePhotoUpload);
-router.post('/hrprofile/add', hrProfileController.hrProfileAdd);
-router.put('/hrprofile/update', hrProfileController.hrProfileUpdate);
-router.delete('/hrprofile/delete/:id', hrProfileController.hrProfileDelete);
+router.get('/hrprofile/list', (0, authMiddleware_1.requireUsers)([ADMIN, HR_USER]), hrProfileController.getHrProfileList);
+router.post('/hrprofile/photoupload', (0, authMiddleware_1.requireUsers)([ADMIN, HR_USER]), upload.single('file'), hrProfileController.hrProfilePhotoUpload);
+router.post('/hrprofile/add', (0, authMiddleware_1.requireUsers)([ADMIN, HR_USER]), hrProfileController.hrProfileAdd);
+router.put('/hrprofile/update', (0, authMiddleware_1.requireUsers)([ADMIN, HR_USER]), hrProfileController.hrProfileUpdate);
+router.delete('/hrprofile/delete/:id', (0, authMiddleware_1.requireUsers)([ADMIN, HR_USER]), hrProfileController.hrProfileDelete);
 exports.default = router;

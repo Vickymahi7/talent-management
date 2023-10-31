@@ -28,9 +28,6 @@ export const validateLoginInput = (email_id: string, password: string): void => 
 };
 
 export const validateAddUserInput = (user: User): void => {
-  if (!user.tenant_id) {
-    throw new HttpBadRequest('Tenant is required');
-  }
   if (!user.user_name) {
     throw new HttpBadRequest('User name is required');
   }

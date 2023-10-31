@@ -205,9 +205,10 @@ const getHrProfileList = (req, res, next) => __awaiter(void 0, void 0, void 0, f
             query = email_id ? `${field1}` : field2;
         }
         const solrCore = SOLR_CORE_PREFIX + req.headers.tenantId;
-        let response = yield axios_1.default.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query } });
+        let response = yield axios_1.default.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query, "q.op": "AND" } });
+        const { numFound } = response.data.response;
         const hrProfileList = response.data.response.docs.map((data) => (Object.assign(Object.assign({}, data), { work_experience: data.work_experience ? JSON.parse(data.work_experience) : [], project: data.project ? JSON.parse(data.project) : [], education: data.education ? JSON.parse(data.education) : [], skills: data.skills ? JSON.parse(data.skills) : [] })));
-        res.status(httpStatusCode_1.default.OK).json({ hrProfileList });
+        res.status(httpStatusCode_1.default.OK).json({ numFound, hrProfileList });
     }
     catch (error) {
         next(error);

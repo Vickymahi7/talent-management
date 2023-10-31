@@ -7,6 +7,7 @@ import HttpStatusCode from '../utils/httpStatusCode';
 import { validateAddUserInput, validateAddTenantInput, validateUpdateTenantInput } from '../validations/validations';
 import { createUser } from '../helperFunctions/userFunctions';
 import { createSolrCore } from '../helperFunctions/hrProfleFunctions';
+import UserTypes from '../utils/userTypes';
 
 /**
  * @swagger
@@ -50,9 +51,9 @@ import { createSolrCore } from '../helperFunctions/hrProfleFunctions';
  *               tenant_type_id: 1
  *               description: This is a description
  *               location: Delhi
- *               user_name: Demo User
+ *               user_name: Demo Tenant
+ *               email_id: demotenant@demo.com
  *               password: demo123
- *               email_id: demouser@demo.com
  *     responses:
  *       201:
  *         description: Created.
@@ -75,7 +76,7 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
       const response = await transactionalEntityManager.save(Tenant, tenant);
 
       user.tenant_id = response.tenant_id;
-      user.user_type_id = 2;  // set user type as Admin
+      user.user_type_id = UserTypes.ADMIN;
 
       validateAddUserInput(user);
       await createUser(user, transactionalEntityManager);
@@ -102,11 +103,7 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
 */
 const getTenantList = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const tenantId = req.headers.tenantId as string;
-
-    const tenantList = await db.find(Tenant, {
-      where: { tenant_id: parseInt(tenantId) },
-    });
+    const tenantList = await db.find(Tenant);
     res.status(HttpStatusCode.OK).json({ tenantList });
   } catch (error) {
     next(error);
