@@ -79,6 +79,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         skype_id:
  *           type: string
+ *         status:
+ *           type: string
  *         status_id:
  *           type: number
  *         user_id:
@@ -302,6 +304,7 @@ const hrProfilePhotoUpload = async (req: Request, res: Response, next: NextFunct
  *               twitter_id:
  *               linkedin_id:
  *               skype_id:
+ *               status:
  *               status_id: 1
  *               user_id: 1
  *               active: true
@@ -402,6 +405,7 @@ const hrProfileAdd = async (req: Request, res: Response, next: NextFunction) => 
  *               twitter_id:
  *               linkedin_id:
  *               skype_id:
+ *               status:
  *               status_id: 1
  *               user_id: 1
  *               active: true
@@ -443,10 +447,12 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
     const { id, user_id, _version_, ...updateValues } = req.body;
 
+    updateValues.last_updated_dt = new Date();
+
     const hrProfile = new HrProfile(updateValues);
     let updatePayload = {
       id: id,
-      user_id: user_id
+      user_id: user_id,
     }
     for (const prop in updateValues) {
       updatePayload[prop] = { set: hrProfile[prop] };
@@ -459,6 +465,54 @@ const hrProfileUpdate = async (req: Request, res: Response, next: NextFunction) 
     await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
 
     res.status(HttpStatusCode.OK).json({ message: "Profile Updated Successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/view/{id}:
+ *   get:
+ *     summary: View Profile
+ *     tags: [HR Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+const hrProfileView = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let id = req.params.id;
+    if (!id) {
+      throw new HttpBadRequest("Id is required");
+    }
+
+    let query = `id:${id}`;
+
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+
+    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, { params: { q: query, "q.op": "AND" } })
+
+    if (response.data.response.docs.length > 0) {
+
+      const hrProfile = response.data.response.docs[0];
+      hrProfile.work_experience = hrProfile.work_experience ? JSON.parse(hrProfile.work_experience) : [];
+      hrProfile.project = hrProfile.project ? JSON.parse(hrProfile.project) : [];
+      hrProfile.education = hrProfile.education ? JSON.parse(hrProfile.education) : [];
+      hrProfile.skills = hrProfile.skills ? JSON.parse(hrProfile.skills) : [];
+
+      return res.status(HttpStatusCode.OK).json({ hrProfile });
+    } else {
+      throw new HttpNotFound("Profile Not Found");
+    }
   } catch (error) {
     next(error);
   }
@@ -503,5 +557,5 @@ const hrProfileDelete = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-export { getHrProfileList, hrProfileAdd, hrProfileDelete, hrProfilePhotoUpload, hrProfileUpdate };
+export { getHrProfileList, hrProfilePhotoUpload, hrProfileAdd, hrProfileUpdate, hrProfileView, hrProfileDelete };
 

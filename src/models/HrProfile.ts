@@ -31,6 +31,7 @@ export default class HrProfile {
   twitter_id?: string;
   linkedin_id?: string;
   skype_id?: string;
+  status?: string;
   status_id?: string | number;
   user_id?: string | number;
   active?: boolean;
@@ -75,6 +76,7 @@ export default class HrProfile {
     this.twitter_id = data.twitter_id;
     this.linkedin_id = data.linkedin_id;
     this.skype_id = data.skype_id;
+    this.status = data.status;
     this.status_id = data.status_id;
     this.user_id = data.user_id;
     this.active = data.active;
