@@ -15,6 +15,7 @@ export default class HrProfile {
   location?: string;
   ctc?: string;
   objective?: string;
+  summary?: string;
   note?: string;
   gender?: string;
   date_of_birth?: string;
@@ -42,6 +43,7 @@ export default class HrProfile {
   work_experience?: any;
   project?: any;
   education?: any;
+  docs?: any;
 
   constructor(data: any) {
     this.id = data.id;
@@ -60,6 +62,7 @@ export default class HrProfile {
     this.location = data.location;
     this.ctc = data.ctc;
     this.objective = data.objective;
+    this.summary = data.summary;
     this.note = data.note;
     this.gender = data.gender;
     this.date_of_birth = data.date_of_birth;
@@ -83,9 +86,12 @@ export default class HrProfile {
     this.created_by_id = data.created_by_id;
     this.created_dt = data.created_dt;
     this.last_updated_dt = data.last_updated_dt;
-    this.skills = data.skills ? JSON.stringify(data.skills) : null;
-    this.work_experience = data.work_experience ? JSON.stringify(data.work_experience) : null;
-    this.project = data.project ? JSON.stringify(data.project) : null;
-    this.education = data.education ? JSON.stringify(data.education) : null;
+    this.skills = data.skills;
+    this.work_experience = data.work_experience?.map((data) =>
+      JSON.stringify(data)
+    );
+    this.project = data.project?.map((data) => JSON.stringify(data));
+    this.education = data.education?.map((data) => JSON.stringify(data));
+    this.docs = data.docs?.map((data) => JSON.stringify(data));
   }
 }
