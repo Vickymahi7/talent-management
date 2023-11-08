@@ -1,13 +1,17 @@
-import { NextFunction, Request, Response } from 'express';
-import { db } from '../data-source';
-import User from '../models/User';
-import Tenant from '../models/Tenant';
-import { HttpBadRequest, HttpNotFound } from '../utils/errors';
-import HttpStatusCode from '../utils/httpStatusCode';
-import { validateAddUserInput, validateAddTenantInput, validateUpdateTenantInput } from '../validations/validations';
-import { createUser } from '../helperFunctions/userFunctions';
-import { createSolrCore } from '../helperFunctions/hrProfleFunctions';
-import UserTypes from '../utils/userTypes';
+import { NextFunction, Request, Response } from "express";
+import { db } from "../data-source";
+import User from "../models/User";
+import Tenant from "../models/Tenant";
+import { HttpBadRequest, HttpNotFound } from "../utils/errors";
+import HttpStatusCode from "../utils/httpStatusCode";
+import {
+  validateAddUserInput,
+  validateAddTenantInput,
+  validateUpdateTenantInput,
+} from "../validations/validations";
+import { createUser } from "../helperFunctions/userFunctions";
+import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
+import UserTypes from "../utils/userTypes";
 
 /**
  * @swagger
@@ -57,19 +61,19 @@ import UserTypes from '../utils/userTypes';
  *     responses:
  *       201:
  *         description: Created.
-*/
+ */
 const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenant: Tenant = req.body;
     const user: User = req.body;
 
     validateAddTenantInput(tenant);
+    validateAddUserInput(user);
 
     const currentUserId = req.headers.userId as string;
 
     // handling transaction
     await db.transaction(async (transactionalEntityManager) => {
-
       tenant.active = true;
       tenant.created_by_id = parseInt(currentUserId);
 
@@ -78,12 +82,12 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
       user.tenant_id = response.tenant_id;
       user.user_type_id = UserTypes.ADMIN;
 
-      validateAddUserInput(user);
       await createUser(user, transactionalEntityManager);
       await createSolrCore(response.tenant_id!);
-      res.status(HttpStatusCode.CREATED).json({ message: "Tenant Created Successfully" });
+      res
+        .status(HttpStatusCode.CREATED)
+        .json({ message: "Tenant Created Successfully" });
     });
-
   } catch (error) {
     next(error);
   }
@@ -100,8 +104,12 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
  *     responses:
  *       200:
  *         description: OK.
-*/
-const getTenantList = async (req: Request, res: Response, next: NextFunction) => {
+ */
+const getTenantList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const tenantList = await db.find(Tenant);
     res.status(HttpStatusCode.OK).json({ tenantList });
@@ -151,7 +159,11 @@ const getTenantList = async (req: Request, res: Response, next: NextFunction) =>
  *       200:
  *         description: OK.
  */
-const tenantUpdate = async (req: Request, res: Response, next: NextFunction) => {
+const tenantUpdate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const tenant: Tenant = req.body;
 
@@ -161,7 +173,6 @@ const tenantUpdate = async (req: Request, res: Response, next: NextFunction) => 
       where: { tenant_id: tenant.tenant_id },
     });
     if (existingTenant) {
-
       const response = await db.update(Tenant, tenant.tenant_id, {
         name: tenant.name,
         tenant_type_id: tenant.tenant_type_id,
@@ -171,10 +182,11 @@ const tenantUpdate = async (req: Request, res: Response, next: NextFunction) => 
       });
 
       if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({ message: "Tenant Updated Successfully" });
+        res
+          .status(HttpStatusCode.OK)
+          .json({ message: "Tenant Updated Successfully" });
       }
-    }
-    else {
+    } else {
       throw new HttpNotFound("Tenant Not Found");
     }
   } catch (error) {
@@ -205,15 +217,13 @@ const tenantView = async (req: Request, res: Response, next: NextFunction) => {
     let tenantId = req.params.id;
     if (!tenantId) {
       throw new HttpBadRequest("Tenant Id is required");
-    }
-    else {
+    } else {
       const tenant = await db.findOne(Tenant, {
         where: { tenant_id: parseInt(tenantId) },
       });
       if (tenant) {
         res.status(HttpStatusCode.OK).json({ tenant });
-      }
-      else {
+      } else {
         throw new HttpNotFound("Tenant not found");
       }
     }
@@ -240,18 +250,22 @@ const tenantView = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const tenantDelete = async (req: Request, res: Response, next: NextFunction) => {
+const tenantDelete = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     let tenantId = req.params.id;
     if (!tenantId) {
       throw new HttpBadRequest("Tenant Id is required");
-    }
-    else {
+    } else {
       const response = await db.delete(Tenant, tenantId);
       if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({ message: "Tenant Deleted Successfully" });
-      }
-      else {
+        res
+          .status(HttpStatusCode.OK)
+          .json({ message: "Tenant Deleted Successfully" });
+      } else {
         throw new HttpNotFound("Tenant not found");
       }
     }
@@ -261,4 +275,3 @@ const tenantDelete = async (req: Request, res: Response, next: NextFunction) => 
 };
 
 export { getTenantList, tenantAdd, tenantDelete, tenantUpdate, tenantView };
-
