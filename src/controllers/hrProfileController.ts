@@ -13,6 +13,7 @@ import {
   validateAddHrProfileInput,
   validateUpdateHrProfileInput,
 } from "../validations/validations";
+import path from "node:path";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -53,6 +54,10 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: string
  *         ctc:
  *           type: string
+ *         experience_month:
+ *           type: number
+ *         experience_year:
+ *           type: number
  *         objective:
  *           type: string
  *         summary:
@@ -266,10 +271,17 @@ const hrProfilePhotoUpload = async (
     const file = req.file;
     validatePhotoUpload(req);
 
+    const localFilePath = path.join(
+      process.cwd(),
+      "src",
+      "uploads",
+      file?.filename!
+    );
+
     let updatePayload = {
       id: id,
       user_id: userId,
-      photo_url: { set: file?.path },
+      photo_url: { set: localFilePath },
     };
 
     const data = {
@@ -314,6 +326,8 @@ const hrProfilePhotoUpload = async (
  *               office_phone:
  *               location:
  *               ctc:
+ *               experience_month: 1
+ *               experience_year: 6
  *               objective: Passionate and Hard working individual and a great Team player
  *               summary: This is a resume summary
  *               note:
@@ -386,6 +400,7 @@ const hrProfileAdd = async (
     hrProfile.user_id = currentUserId;
     hrProfile.tenant_id = tenantId;
     hrProfile.created_by_id = currentUserId;
+    hrProfile.last_updated_dt = new Date();
 
     await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, [
       hrProfile,
@@ -427,6 +442,8 @@ const hrProfileAdd = async (
  *               office_phone:
  *               location:
  *               ctc:
+ *               experience_month: 1
+ *               experience_year: 6
  *               objective: Passionate and Hard working individual and a great Team player
  *               summary: This is a resume summary
  *               note:

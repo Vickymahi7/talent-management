@@ -1,14 +1,25 @@
-import bcrypt from 'bcrypt';
-import dotenv from 'dotenv';
-import { NextFunction, Request, Response } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import { Not } from 'typeorm';
-import { db } from '../data-source';
-import User from '../models/User';
-import { HttpForbidden, HttpBadRequest, HttpConflict, HttpNotFound, HttpUnauthorized } from '../utils/errors';
-import HttpStatusCode from '../utils/httpStatusCode';
-import { validateAddUserInput, validateLoginInput, validateUpdateUserInput } from '../validations/validations';
-import { createUser, generateAccessToken } from '../helperFunctions/userFunctions';
+import bcrypt from "bcrypt";
+import dotenv from "dotenv";
+import { NextFunction, Request, Response } from "express";
+import { Not } from "typeorm";
+import { db } from "../data-source";
+import User from "../models/User";
+import {
+  HttpBadRequest,
+  HttpConflict,
+  HttpNotFound,
+  HttpUnauthorized,
+} from "../utils/errors";
+import HttpStatusCode from "../utils/httpStatusCode";
+import {
+  validateAddUserInput,
+  validateLoginInput,
+  validateUpdateUserInput,
+} from "../validations/validations";
+import {
+  createUser,
+  generateAccessToken,
+} from "../helperFunctions/userFunctions";
 
 dotenv.config();
 
@@ -63,16 +74,17 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
         const userData = {
           user_id: user.user_id,
           user_type_id: user.user_type_id,
-          tenant_id: user.tenant_id
+          tenant_id: user.tenant_id,
         };
 
         const accessToken = generateAccessToken(userData);
 
-        return res.status(HttpStatusCode.OK).json({ accessToken });
+        return res
+          .status(HttpStatusCode.OK)
+          .json({ accessToken, userTypeId: user.user_type_id });
       }
     }
     throw new HttpUnauthorized("Invalid Credentials");
-
   } catch (error) {
     next(error);
   }
@@ -130,7 +142,9 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
 
     const response = await createUser(user);
 
-    res.status(HttpStatusCode.CREATED).json({ message: "User Created Successfully" });
+    res
+      .status(HttpStatusCode.CREATED)
+      .json({ message: "User Created Successfully" });
   } catch (error) {
     next(error);
   }
@@ -213,23 +227,22 @@ const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
     });
     if (isEmailExists) {
       throw new HttpConflict("User already exists for this email");
-    }
-    else {
+    } else {
       const response = await db.update(User, user.user_id, {
         user_type_id: user.user_type_id,
         user_name: user.user_name,
         email_id: user.email_id,
         user_status_id: user.user_status_id,
         active: user.active,
-      })
+      });
 
       if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({ message: "User Updated Successfully" });
-      }
-      else {
+        res
+          .status(HttpStatusCode.OK)
+          .json({ message: "User Updated Successfully" });
+      } else {
         throw new HttpNotFound("User not found");
       }
-
     }
   } catch (error) {
     next(error);
@@ -259,15 +272,13 @@ const userView = async (req: Request, res: Response, next: NextFunction) => {
     let userId = req.params.id;
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
-    }
-    else {
+    } else {
       const user = await db.findOne(User, {
         where: { user_id: parseInt(userId) },
       });
       if (user) {
         res.status(HttpStatusCode.OK).json({ user });
-      }
-      else {
+      } else {
         throw new HttpNotFound("User not found");
       }
     }
@@ -299,13 +310,13 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
     let userId = req.params.id;
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
-    }
-    else {
+    } else {
       const response = await db.delete(User, userId);
       if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({ message: "User Deleted Successfully" });
-      }
-      else {
+        res
+          .status(HttpStatusCode.OK)
+          .json({ message: "User Deleted Successfully" });
+      } else {
         throw new HttpNotFound("User not found");
       }
     }
@@ -315,4 +326,3 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 export { userLogin, getUserList, userAdd, userDelete, userUpdate, userView };
-

@@ -14,6 +14,8 @@ export default class HrProfile {
   office_phone?: string;
   location?: string;
   ctc?: string;
+  experience_month?: string | number;
+  experience_year?: string | number;
   objective?: string;
   summary?: string;
   note?: string;
@@ -37,8 +39,8 @@ export default class HrProfile {
   user_id?: string | number;
   active?: boolean;
   created_by_id?: string | number;
-  created_dt?: string;
-  last_updated_dt?: string;
+  created_dt?: Date;
+  last_updated_dt?: Date;
   skills?: any;
   work_experience?: any;
   project?: any;
@@ -61,6 +63,8 @@ export default class HrProfile {
     this.office_phone = data.office_phone;
     this.location = data.location;
     this.ctc = data.ctc;
+    this.experience_month = data.experience_month;
+    this.experience_year = data.experience_year;
     this.objective = data.objective;
     this.summary = data.summary;
     this.note = data.note;

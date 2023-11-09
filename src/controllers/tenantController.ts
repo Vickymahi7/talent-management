@@ -80,7 +80,7 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
       const response = await transactionalEntityManager.save(Tenant, tenant);
 
       user.tenant_id = response.tenant_id;
-      user.user_type_id = UserTypes.ADMIN;
+      user.user_type_id = UserTypes.ADM;
 
       await createUser(user, transactionalEntityManager);
       await createSolrCore(response.tenant_id!);
