@@ -14,6 +14,7 @@ import {
   validateUpdateHrProfileInput,
 } from "../validations/validations";
 import path from "node:path";
+import { uploadFile } from "../s3";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -271,17 +272,21 @@ const hrProfilePhotoUpload = async (
     const file = req.file;
     validatePhotoUpload(req);
 
-    const localFilePath = path.join(
-      process.cwd(),
-      "src",
-      "uploads",
-      file?.filename!
+    const fileBuffer = file?.buffer;
+    const fileLocation = `profile-photos/${id}`;
+
+    const uploadRes = await uploadFile(
+      fileBuffer,
+      fileLocation,
+      file?.mimetype
     );
+
+    const filePath = `${process.env.AWS_SAVE_URL!}/${fileLocation}`;
 
     let updatePayload = {
       id: id,
       user_id: userId,
-      photo_url: { set: localFilePath },
+      photo_url: { set: filePath },
     };
 
     const data = {

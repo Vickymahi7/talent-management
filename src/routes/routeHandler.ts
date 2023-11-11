@@ -10,16 +10,10 @@ import * as user from "../controllers/userController";
 import * as hrProfile from "../controllers/hrProfileController";
 
 const router: Router = express.Router();
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join("src", "uploads")); // Set your upload directory
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.originalname);
-  },
-});
 
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
 const { SAD, ADM, HRU } = userTypes;
 
 // Swagger Docs Route
