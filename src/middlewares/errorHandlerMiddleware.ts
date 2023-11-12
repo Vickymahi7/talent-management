@@ -5,7 +5,7 @@ import HttpStatusCode from '../utils/httpStatusCode';
 const errorHandler = (error: ApiError, req: Request, res: Response, next: NextFunction) => {
   if (error instanceof ApiError) {
     const statusCode = error.statusCode || HttpStatusCode.INTERNAL_SERVER_ERROR;
-    res.status(statusCode).json({ status: statusCode, mesaage: error.message })
+    res.status(statusCode).json({ status: statusCode, message: error.message })
   } else {
     res.sendStatus(HttpStatusCode.INTERNAL_SERVER_ERROR)
   }

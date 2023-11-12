@@ -297,7 +297,7 @@ const hrProfilePhotoUpload = async (
 
     res
       .status(HttpStatusCode.OK)
-      .json({ message: "Photo Uploaded Successfully" });
+      .json({ status: HttpStatusCode.OK, message: "Photo Uploaded Successfully" });
   } catch (error) {
     next(error);
   }
@@ -413,7 +413,7 @@ const hrProfileAdd = async (
 
     res
       .status(HttpStatusCode.CREATED)
-      .json({ message: "Profile Added Successfully" });
+      .json({ status: HttpStatusCode.CREATED, message: "Profile Added Successfully" });
   } catch (error) {
     next(error);
   }
@@ -535,7 +535,7 @@ const hrProfileUpdate = async (
 
     res
       .status(HttpStatusCode.OK)
-      .json({ message: "Profile Updated Successfully" });
+      .json({ status: HttpStatusCode.OK, message: "Profile Updated Successfully" });
   } catch (error) {
     next(error);
   }
@@ -637,7 +637,7 @@ const hrProfileDelete = async (
 
     res
       .status(HttpStatusCode.OK)
-      .json({ message: "Profile Deleted Successfully" });
+      .json({ status: HttpStatusCode.OK, message: "Profile Deleted Successfully" });
   } catch (error) {
     next(error);
   }

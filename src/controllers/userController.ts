@@ -144,7 +144,7 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
 
     res
       .status(HttpStatusCode.CREATED)
-      .json({ message: "User Created Successfully" });
+      .json({ status: HttpStatusCode.CREATED, message: "User Created Successfully" });
   } catch (error) {
     next(error);
   }
@@ -239,7 +239,7 @@ const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
       if (response.affected && response.affected > 0) {
         res
           .status(HttpStatusCode.OK)
-          .json({ message: "User Updated Successfully" });
+          .json({ status: HttpStatusCode.OK, message: "User Updated Successfully" });
       } else {
         throw new HttpNotFound("User not found");
       }
@@ -315,7 +315,7 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
       if (response.affected && response.affected > 0) {
         res
           .status(HttpStatusCode.OK)
-          .json({ message: "User Deleted Successfully" });
+          .json({ status: HttpStatusCode.OK, message: "User Deleted Successfully" });
       } else {
         throw new HttpNotFound("User not found");
       }

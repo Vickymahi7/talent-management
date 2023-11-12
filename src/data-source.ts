@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import User from "./models/User";
 import Tenant from "./models/Tenant";
 import dotenv from "dotenv";
+import { HttpInternalServerError } from "./utils/errors";
 dotenv.config();
 
 const AppDataSource = new DataSource({
@@ -18,8 +19,14 @@ const AppDataSource = new DataSource({
   subscribers: [],
   migrations: [],
 });
-console.log(process.env.DB_HOST);
 
-AppDataSource.initialize();
+AppDataSource.initialize()
+  .then(() => {
+    console.log("Data Source has been initialized!")
+  })
+  .catch((err) => {
+    console.error(err)
+    throw new HttpInternalServerError(`Something went wrong!`);
+  });
 
 export const db = AppDataSource.manager;

@@ -86,7 +86,7 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
       await createSolrCore(response.tenant_id!);
       res
         .status(HttpStatusCode.CREATED)
-        .json({ message: "Tenant Created Successfully" });
+        .json({ status: HttpStatusCode.CREATED, message: "Tenant Created Successfully" });
     });
   } catch (error) {
     next(error);
@@ -184,7 +184,7 @@ const tenantUpdate = async (
       if (response.affected && response.affected > 0) {
         res
           .status(HttpStatusCode.OK)
-          .json({ message: "Tenant Updated Successfully" });
+          .json({ status: HttpStatusCode.OK, message: "Tenant Updated Successfully" });
       }
     } else {
       throw new HttpNotFound("Tenant Not Found");
@@ -264,7 +264,7 @@ const tenantDelete = async (
       if (response.affected && response.affected > 0) {
         res
           .status(HttpStatusCode.OK)
-          .json({ message: "Tenant Deleted Successfully" });
+          .json({ status: HttpStatusCode.OK, message: "Tenant Deleted Successfully" });
       } else {
         throw new HttpNotFound("Tenant not found");
       }
