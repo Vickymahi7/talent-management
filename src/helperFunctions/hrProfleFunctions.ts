@@ -1,6 +1,6 @@
 import axios from "axios";
 import dotenv from "dotenv";
-import { HttpInternalServerError } from "../utils/errors";
+import { HttpInternalServerError } from "../types/errors";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL!;

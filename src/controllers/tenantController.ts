@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import { db } from "../data-source";
+import { AppDataSource } from "../data-source";
 import User from "../models/User";
 import Tenant from "../models/Tenant";
-import { HttpBadRequest, HttpNotFound } from "../utils/errors";
-import HttpStatusCode from "../utils/httpStatusCode";
+import { HttpBadRequest, HttpNotFound } from "../types/errors";
+import HttpStatusCode from "../types/httpStatusCode";
 import {
   validateAddUserInput,
   validateAddTenantInput,
@@ -11,7 +11,9 @@ import {
 } from "../validations/validations";
 import { createUser } from "../helperFunctions/userFunctions";
 import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
-import UserTypes from "../utils/userTypes";
+import UserTypes from "../types/userTypes";
+
+const db = AppDataSource.manager;
 
 /**
  * @swagger
@@ -41,14 +43,11 @@ import UserTypes from "../utils/userTypes";
  *                 type: string
  *               user_name:
  *                 type: string
- *               password:
- *                 type: string
  *               email_id:
  *                 type: string
  *             required:
  *               - name
  *               - user_name
- *               - password
  *               - email_id
  *             example:
  *               name: ABC Tech Pvt. Ltd.
@@ -57,12 +56,15 @@ import UserTypes from "../utils/userTypes";
  *               location: Delhi
  *               user_name: Demo Tenant
  *               email_id: demotenant@demo.com
- *               password: demo123
  *     responses:
  *       201:
  *         description: Created.
  */
-const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
+export const tenantAdd = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const tenant: Tenant = req.body;
     const user: User = req.body;
@@ -84,9 +86,10 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
 
       await createUser(user, transactionalEntityManager);
       await createSolrCore(response.tenant_id!);
-      res
-        .status(HttpStatusCode.CREATED)
-        .json({ status: HttpStatusCode.CREATED, message: "Tenant Created Successfully" });
+      res.status(HttpStatusCode.CREATED).json({
+        status: HttpStatusCode.CREATED,
+        message: "Tenant Created Successfully",
+      });
     });
   } catch (error) {
     next(error);
@@ -105,7 +108,7 @@ const tenantAdd = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const getTenantList = async (
+export const getTenantList = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -159,7 +162,7 @@ const getTenantList = async (
  *       200:
  *         description: OK.
  */
-const tenantUpdate = async (
+export const tenantUpdate = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -182,9 +185,10 @@ const tenantUpdate = async (
       });
 
       if (response.affected && response.affected > 0) {
-        res
-          .status(HttpStatusCode.OK)
-          .json({ status: HttpStatusCode.OK, message: "Tenant Updated Successfully" });
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "Tenant Updated Successfully",
+        });
       }
     } else {
       throw new HttpNotFound("Tenant Not Found");
@@ -212,7 +216,11 @@ const tenantUpdate = async (
  *       200:
  *         description: OK.
  */
-const tenantView = async (req: Request, res: Response, next: NextFunction) => {
+export const tenantView = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     let tenantId = req.params.id;
     if (!tenantId) {
@@ -250,7 +258,7 @@ const tenantView = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const tenantDelete = async (
+export const tenantDelete = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -262,9 +270,10 @@ const tenantDelete = async (
     } else {
       const response = await db.delete(Tenant, tenantId);
       if (response.affected && response.affected > 0) {
-        res
-          .status(HttpStatusCode.OK)
-          .json({ status: HttpStatusCode.OK, message: "Tenant Deleted Successfully" });
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "Tenant Deleted Successfully",
+        });
       } else {
         throw new HttpNotFound("Tenant not found");
       }
@@ -273,5 +282,3 @@ const tenantDelete = async (
     next(error);
   }
 };
-
-export { getTenantList, tenantAdd, tenantDelete, tenantUpdate, tenantView };

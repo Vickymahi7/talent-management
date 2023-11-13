@@ -1,9 +1,8 @@
 import express, { Router } from "express";
 import swaggerUi from "swagger-ui-express";
-import path from "path";
 import multer from "multer";
-import swagger from "../swagger/swagger";
-import userTypes from "../utils/userTypes";
+import swagger from "../utils/swagger";
+import userTypes from "../types/userTypes";
 import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
 import * as tenant from "../controllers/tenantController";
 import * as user from "../controllers/userController";
@@ -17,11 +16,14 @@ const upload = multer({ storage: storage });
 const { SAD, ADM, HRU } = userTypes;
 
 // Swagger Docs Route
-router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
+router.get("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
 
-// Login Routes
+// Public Routes
 router.post("/login", user.userLogin);
+router.get("/user/activationdetail/:token", user.getUserActivationDetails);
+router.post("/user/activate", user.activateUser);
 
+// Protected Routes
 router.use(checkUserAuth);
 // Tenant Routes
 router.post("/tenant/add", requireUsers([SAD]), tenant.tenantAdd);
@@ -48,6 +50,12 @@ router.post(
   requireUsers([ADM, HRU]),
   upload.single("file"),
   hrProfile.hrProfilePhotoUpload
+);
+router.post(
+  "/hrprofile/resumeupload",
+  requireUsers([ADM, HRU]),
+  upload.single("file"),
+  hrProfile.hrProfileResumeUpload
 );
 router.post("/hrprofile/add", requireUsers([ADM, HRU]), hrProfile.hrProfileAdd);
 router.put(

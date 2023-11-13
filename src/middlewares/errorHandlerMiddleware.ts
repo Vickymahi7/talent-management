@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { ApiError } from '../utils/errors';
-import HttpStatusCode from '../utils/httpStatusCode';
+import { ApiError } from '../types/errors';
+import HttpStatusCode from '../types/httpStatusCode';
 
 const errorHandler = (error: ApiError, req: Request, res: Response, next: NextFunction) => {
   if (error instanceof ApiError) {

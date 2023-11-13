@@ -1,11 +1,11 @@
-import HttpStatusCode from './httpStatusCode';
+import HttpStatusCode from "../types/httpStatusCode";
 
 class ApiError extends Error {
   public statusCode: number;
   constructor(message: string, statusCode: number) {
     super(message);
     this.statusCode = statusCode;
-    this.name = 'Error';
+    this.name = "Error";
     Error.captureStackTrace(this, ApiError);
   }
 }
@@ -13,42 +13,42 @@ class ApiError extends Error {
 class HttpBadRequest extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.BAD_REQUEST);
-    this.name = 'BadRequest';
+    this.name = "BadRequest";
   }
 }
 
 class HttpUnauthorized extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.UNAUTHORIZED);
-    this.name = 'Unauthorized';
+    this.name = "Unauthorized";
   }
 }
 
 class HttpForbidden extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.FORBIDDEN);
-    this.name = 'Forbidden';
+    this.name = "Forbidden";
   }
 }
 
 class HttpNotFound extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.NOT_FOUND);
-    this.name = 'NotFound';
+    this.name = "NotFound";
   }
 }
 
 class HttpConflict extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.CONFLICT);
-    this.name = 'Conflict';
+    this.name = "Conflict";
   }
 }
 
 class HttpInternalServerError extends ApiError {
   constructor(message: string) {
     super(message, HttpStatusCode.INTERNAL_SERVER_ERROR);
-    this.name = 'HttpInternalServerError';
+    this.name = "HttpInternalServerError";
   }
 }
 

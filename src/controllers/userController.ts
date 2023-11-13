@@ -2,15 +2,15 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
 import { Not } from "typeorm";
-import { db } from "../data-source";
+import { AppDataSource } from "../data-source";
 import User from "../models/User";
 import {
   HttpBadRequest,
   HttpConflict,
   HttpNotFound,
   HttpUnauthorized,
-} from "../utils/errors";
-import HttpStatusCode from "../utils/httpStatusCode";
+} from "../types/errors";
+import HttpStatusCode from "../types/httpStatusCode";
 import {
   validateAddUserInput,
   validateLoginInput,
@@ -22,6 +22,7 @@ import {
 } from "../helperFunctions/userFunctions";
 
 dotenv.config();
+const db = AppDataSource.manager;
 
 /**
  * @swagger
@@ -60,7 +61,11 @@ dotenv.config();
  *                 accessToken:
  *                   type: string
  */
-const userLogin = async (req: Request, res: Response, next: NextFunction) => {
+export const userLogin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { email_id, password } = req.body;
     validateLoginInput(email_id, password);
@@ -109,14 +114,10 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  *                 type: number
  *               user_name:
  *                 type: string
- *               password:
- *                 type: string
  *               email_id:
  *                 type: string
  *               user_status_id:
  *                 type: number
- *               active:
- *                 type: boolean
  *             required:
  *               - user_name
  *               - email_id
@@ -124,15 +125,17 @@ const userLogin = async (req: Request, res: Response, next: NextFunction) => {
  *             example:
  *               user_type_id: 3
  *               user_name: Demo User
- *               password: demo123
  *               email_id: demouser@demo.com
  *               user_status_id: null
- *               active: true
  *     responses:
  *       201:
  *         description: Created.
  */
-const userAdd = async (req: Request, res: Response, next: NextFunction) => {
+export const userAdd = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const tenantId = req.headers.tenantId?.toString();
     let user: User = req.body;
@@ -142,9 +145,118 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
 
     const response = await createUser(user);
 
-    res
-      .status(HttpStatusCode.CREATED)
-      .json({ status: HttpStatusCode.CREATED, message: "User Created Successfully" });
+    res.status(HttpStatusCode.CREATED).json({
+      status: HttpStatusCode.CREATED,
+      message: "User Created Successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * tags:
+ *   name: User Activation
+ *   description: APIs for Managing User Activation
+ * /user/activationdetail:
+ *   get:
+ *     summary: Get User Details by activation token
+ *     tags: [User Activation]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: token
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getUserActivationDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token = req.params.token;
+    if (!token) {
+      throw new HttpNotFound("Bad Request");
+    } else {
+      const user = await db.findOne(User, {
+        select: { user_id: true, email_id: true, active: true },
+        where: { activation_token: token },
+      });
+      if (user) {
+        res.status(HttpStatusCode.OK).json({ user });
+      } else {
+        throw new HttpNotFound("Bad Request");
+      }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/activate:
+ *   put:
+ *     summary: Activates New User
+ *     tags: [User Activation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: number
+ *               email_id:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *             required:
+ *               - user_id
+ *               - email_id
+ *               - password
+ *             example:
+ *               user_id: 1
+ *               email_id: demouser@demo.com
+ *               password: demo123
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const activateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user: User = req.body;
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(user.password!, salt);
+
+    const response = await db.update(User, user.user_id, {
+      password: hashedPassword,
+      active: true,
+      activation_token: null,
+    });
+
+    if (response.affected && response.affected > 0) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "User Activated",
+      });
+    } else {
+      throw new HttpNotFound("User not found");
+    }
   } catch (error) {
     next(error);
   }
@@ -162,7 +274,11 @@ const userAdd = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const getUserList = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const tenantId = req.headers.tenantId as string;
     const userList = await db.find(User, {
@@ -216,7 +332,11 @@ const getUserList = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
+export const userUpdate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const user: User = req.body;
 
@@ -237,9 +357,10 @@ const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
       });
 
       if (response.affected && response.affected > 0) {
-        res
-          .status(HttpStatusCode.OK)
-          .json({ status: HttpStatusCode.OK, message: "User Updated Successfully" });
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "User Updated Successfully",
+        });
       } else {
         throw new HttpNotFound("User not found");
       }
@@ -267,7 +388,11 @@ const userUpdate = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const userView = async (req: Request, res: Response, next: NextFunction) => {
+export const userView = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     let userId = req.params.id;
     if (!userId) {
@@ -305,7 +430,11 @@ const userView = async (req: Request, res: Response, next: NextFunction) => {
  *       200:
  *         description: OK.
  */
-const userDelete = async (req: Request, res: Response, next: NextFunction) => {
+export const userDelete = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     let userId = req.params.id;
     if (!userId) {
@@ -313,9 +442,10 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
     } else {
       const response = await db.delete(User, userId);
       if (response.affected && response.affected > 0) {
-        res
-          .status(HttpStatusCode.OK)
-          .json({ status: HttpStatusCode.OK, message: "User Deleted Successfully" });
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "User Deleted Successfully",
+        });
       } else {
         throw new HttpNotFound("User not found");
       }
@@ -324,5 +454,3 @@ const userDelete = async (req: Request, res: Response, next: NextFunction) => {
     next(error);
   }
 };
-
-export { userLogin, getUserList, userAdd, userDelete, userUpdate, userView };

@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { HttpBadRequest } from "../utils/errors";
+import { HttpBadRequest } from "../types/errors";
 import Tenant from "../models/Tenant";
 import User from "../models/User";
 
@@ -37,9 +37,6 @@ export const validateAddUserInput = (user: User): void => {
   if (!user.email_id) {
     throw new HttpBadRequest("Email ID is required");
   }
-  if (!user.password) {
-    throw new HttpBadRequest("Password is required");
-  }
 };
 
 export const validateUpdateUserInput = (user: User): void => {
@@ -64,7 +61,21 @@ export const validatePhotoUpload = (req: Request): void => {
   const fileExtension = req.file?.originalname.split(".").pop()?.toLowerCase();
 
   if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
-    throw new HttpBadRequest("Only image files are allowed");
+    throw new HttpBadRequest("Unsupported File Format");
+  }
+};
+
+export const validateResumeUpload = (req: Request): void => {
+  const allowedExtensions = ["pdf", "doc", "docx", "txt"];
+
+  if (!req.file) {
+    throw new HttpBadRequest("Please select a resume to upload");
+  }
+
+  const fileExtension = req.file?.originalname.split(".").pop()?.toLowerCase();
+
+  if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
+    throw new HttpBadRequest("Unsupported File Format");
   }
 };
 

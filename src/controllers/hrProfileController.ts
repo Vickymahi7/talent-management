@@ -1,20 +1,16 @@
 import { NextFunction, Request, Response } from "express";
-import axios, { AxiosResponse } from "axios";
-import HttpStatusCode from "../utils/httpStatusCode";
-import {
-  HttpNotFound,
-  HttpBadRequest,
-  HttpInternalServerError,
-} from "../utils/errors";
+import axios from "axios";
+import HttpStatusCode from "../types/httpStatusCode";
+import { HttpNotFound, HttpBadRequest } from "../types/errors";
 import HrProfile from "../models/HrProfile";
 import dotenv from "dotenv";
 import {
   validatePhotoUpload,
   validateAddHrProfileInput,
   validateUpdateHrProfileInput,
+  validateResumeUpload,
 } from "../validations/validations";
-import path from "node:path";
-import { uploadFile } from "../s3";
+import { uploadFile } from "../utils/s3";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -195,7 +191,7 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *       200:
  *         description: OK.
  */
-const getHrProfileList = async (
+export const getHrProfileList = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -260,7 +256,7 @@ const getHrProfileList = async (
  *         description: Ok.
  *     x-swagger-router-controller: "Default"
  */
-const hrProfilePhotoUpload = async (
+export const hrProfilePhotoUpload = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -273,31 +269,103 @@ const hrProfilePhotoUpload = async (
     validatePhotoUpload(req);
 
     const fileBuffer = file?.buffer;
-    const fileLocation = `profile-photos/${id}`;
+    const uploadLocation = process.env.AWS_PROFILE_PIC_PATH + id;
+    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
 
     const uploadRes = await uploadFile(
       fileBuffer,
-      fileLocation,
+      uploadLocation,
       file?.mimetype
     );
-
-    const filePath = `${process.env.AWS_SAVE_URL!}/${fileLocation}`;
+    console.log(uploadRes);
 
     let updatePayload = {
       id: id,
       user_id: userId,
-      photo_url: { set: filePath },
+      photo_url: { set: fileUrl },
     };
 
-    const data = {
+    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
       add: { doc: updatePayload },
       commit: {},
-    };
-    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+    });
 
-    res
-      .status(HttpStatusCode.OK)
-      .json({ status: HttpStatusCode.OK, message: "Photo Uploaded Successfully" });
+    res.status(HttpStatusCode.OK).json({
+      status: HttpStatusCode.OK,
+      message: "Photo Uploaded Successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/resumeupload:
+ *   post:
+ *     summary: Upload HR Profile Resume
+ *     tags: [HR Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: number
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *             required:
+ *               - id
+ *               - file
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+export const hrProfileResumeUpload = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const userId = req.headers.userId;
+    const id = req.body.id;
+    const file = req.file;
+    validateResumeUpload(req);
+
+    const fileBuffer = file?.buffer;
+    const uploadLocation = process.env.AWS_RESUME_PATH + id;
+    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+
+    const uploadRes = await uploadFile(
+      fileBuffer,
+      uploadLocation,
+      file?.mimetype
+    );
+
+    console.log(uploadRes);
+
+    let updatePayload = {
+      id: id,
+      user_id: userId,
+      resume_url: { set: fileUrl },
+    };
+
+    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
+      add: { doc: updatePayload },
+      commit: {},
+    });
+
+    res.status(HttpStatusCode.OK).json({
+      status: HttpStatusCode.OK,
+      message: "Resume Uploaded Successfully",
+    });
   } catch (error) {
     next(error);
   }
@@ -387,7 +455,7 @@ const hrProfilePhotoUpload = async (
  *       201:
  *         description: Created.
  */
-const hrProfileAdd = async (
+export const hrProfileAdd = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -411,9 +479,10 @@ const hrProfileAdd = async (
       hrProfile,
     ]);
 
-    res
-      .status(HttpStatusCode.CREATED)
-      .json({ status: HttpStatusCode.CREATED, message: "Profile Added Successfully" });
+    res.status(HttpStatusCode.CREATED).json({
+      status: HttpStatusCode.CREATED,
+      message: "Profile Added Successfully",
+    });
   } catch (error) {
     next(error);
   }
@@ -506,7 +575,7 @@ const hrProfileAdd = async (
  *       200:
  *         description: OK.
  */
-const hrProfileUpdate = async (
+export const hrProfileUpdate = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -527,15 +596,15 @@ const hrProfileUpdate = async (
       updatePayload[prop] = { set: hrProfile[prop] };
     }
 
-    const data = {
+    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
       add: { doc: updatePayload },
       commit: {},
-    };
-    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+    });
 
-    res
-      .status(HttpStatusCode.OK)
-      .json({ status: HttpStatusCode.OK, message: "Profile Updated Successfully" });
+    res.status(HttpStatusCode.OK).json({
+      status: HttpStatusCode.OK,
+      message: "Profile Updated Successfully",
+    });
   } catch (error) {
     next(error);
   }
@@ -559,7 +628,7 @@ const hrProfileUpdate = async (
  *       200:
  *         description: OK.
  */
-const hrProfileView = async (
+export const hrProfileView = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -616,7 +685,7 @@ const hrProfileView = async (
  *       200:
  *         description: OK.
  */
-const hrProfileDelete = async (
+export const hrProfileDelete = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -628,26 +697,17 @@ const hrProfileDelete = async (
     if (!docId) {
       throw new HttpBadRequest("Id is required");
     }
-    const data = {
+    await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
       delete: {
         id: docId,
       },
-    };
-    await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, data);
+    });
 
-    res
-      .status(HttpStatusCode.OK)
-      .json({ status: HttpStatusCode.OK, message: "Profile Deleted Successfully" });
+    res.status(HttpStatusCode.OK).json({
+      status: HttpStatusCode.OK,
+      message: "Profile Deleted Successfully",
+    });
   } catch (error) {
     next(error);
   }
-};
-
-export {
-  getHrProfileList,
-  hrProfilePhotoUpload,
-  hrProfileAdd,
-  hrProfileUpdate,
-  hrProfileView,
-  hrProfileDelete,
 };

@@ -3,10 +3,10 @@ import { DataSource } from "typeorm";
 import User from "./models/User";
 import Tenant from "./models/Tenant";
 import dotenv from "dotenv";
-import { HttpInternalServerError } from "./utils/errors";
+import { HttpInternalServerError } from "./types/errors";
 dotenv.config();
 
-const AppDataSource = new DataSource({
+export const AppDataSource = new DataSource({
   type: "mysql",
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT!),
@@ -18,15 +18,7 @@ const AppDataSource = new DataSource({
   entities: [User, Tenant],
   subscribers: [],
   migrations: [],
+  extra: {
+    connectionLimit: 10,
+  },
 });
-
-AppDataSource.initialize()
-  .then(() => {
-    console.log("Data Source has been initialized!")
-  })
-  .catch((err) => {
-    console.error(err)
-    throw new HttpInternalServerError(`Something went wrong!`);
-  });
-
-export const db = AppDataSource.manager;
