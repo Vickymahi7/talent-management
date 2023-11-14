@@ -19,6 +19,8 @@ import {
 import {
   createUser,
   generateAccessToken,
+  generateActivationUrl,
+  sendUserActivationMail,
 } from "../helperFunctions/userFunctions";
 
 dotenv.config();
@@ -60,6 +62,10 @@ const db = AppDataSource.manager;
  *               properties:
  *                 accessToken:
  *                   type: string
+ *                 userTypeId:
+ *                   type: number
+ *                 userName:
+ *                   type: string
  */
 export const userLogin = async (
   req: Request,
@@ -84,9 +90,12 @@ export const userLogin = async (
 
         const accessToken = generateAccessToken(userData);
 
-        return res
-          .status(HttpStatusCode.OK)
-          .json({ accessToken, userTypeId: user.user_type_id });
+        const responseData = {
+          accessToken,
+          userTypeId: user.user_type_id,
+          userName: user.user_name,
+        };
+        return res.status(HttpStatusCode.OK).json({ ...responseData });
       }
     }
     throw new HttpUnauthorized("Invalid Credentials");
@@ -116,6 +125,8 @@ export const userLogin = async (
  *                 type: string
  *               email_id:
  *                 type: string
+ *               phone:
+ *                 type: string
  *               user_status_id:
  *                 type: number
  *             required:
@@ -126,6 +137,7 @@ export const userLogin = async (
  *               user_type_id: 3
  *               user_name: Demo User
  *               email_id: demouser@demo.com
+ *               phone: 9876543210
  *               user_status_id: null
  *     responses:
  *       201:
@@ -246,7 +258,7 @@ export const activateUser = async (
     const response = await db.update(User, user.user_id, {
       password: hashedPassword,
       active: true,
-      activation_token: null,
+      activation_token: "",
     });
 
     if (response.affected && response.affected > 0) {
@@ -256,6 +268,67 @@ export const activateUser = async (
       });
     } else {
       throw new HttpNotFound("User not found");
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/resendactivation:
+ *   post:
+ *     summary: Resend User Activation Mail
+ *     tags: [User Activation]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const resendActivationMail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    let userId = req.params.id;
+    if (!userId) {
+      throw new HttpBadRequest("User Id is required");
+    } else {
+      const user = await db.findOne(User, {
+        select: {
+          user_id: true,
+          email_id: true,
+          user_name: true,
+          activation_token: true,
+        },
+        where: { user_id: parseInt(userId) },
+      });
+      if (user) {
+        if (user.activation_token) {
+          const activationUrl = generateActivationUrl(user.activation_token);
+          const sendMailResponse = await sendUserActivationMail(
+            user.email_id!,
+            user.user_name!,
+            activationUrl
+          );
+          res.status(HttpStatusCode.OK).json({
+            status: HttpStatusCode.OK,
+            message: "Activation Mail Sent",
+          });
+        } else {
+          throw new HttpBadRequest("Bad Request");
+        }
+      } else {
+        throw new HttpNotFound("User not found");
+      }
     }
   } catch (error) {
     next(error);
@@ -313,6 +386,8 @@ export const getUserList = async (
  *                 type: string
  *               email_id:
  *                 type: string
+ *               phone:
+ *                 type: string
  *               user_status_id:
  *                 type: string
  *               active:
@@ -326,6 +401,7 @@ export const getUserList = async (
  *               user_type_id: null
  *               user_name: Demo User
  *               email_id: demouser@demo.com
+ *               phone: 9876543210
  *               user_status_id: null
  *               active: true
  *     responses:
@@ -352,6 +428,7 @@ export const userUpdate = async (
         user_type_id: user.user_type_id,
         user_name: user.user_name,
         email_id: user.email_id,
+        phone: user.phone,
         user_status_id: user.user_status_id,
         active: user.active,
       });

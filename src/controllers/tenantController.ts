@@ -45,6 +45,8 @@ const db = AppDataSource.manager;
  *                 type: string
  *               email_id:
  *                 type: string
+ *               phone:
+ *                 type: string
  *             required:
  *               - name
  *               - user_name
@@ -56,6 +58,7 @@ const db = AppDataSource.manager;
  *               location: Delhi
  *               user_name: Demo Tenant
  *               email_id: demotenant@demo.com
+ *               phone: "9876543210"
  *     responses:
  *       201:
  *         description: Created.
@@ -66,25 +69,39 @@ export const tenantAdd = async (
   next: NextFunction
 ) => {
   try {
-    const tenant: Tenant = req.body;
-    const user: User = req.body;
+    validateAddTenantInput(req.body);
+    validateAddUserInput(req.body);
 
-    validateAddTenantInput(tenant);
-    validateAddUserInput(user);
-
-    const currentUserId = req.headers.userId as string;
+    const currentUserId = req.headers.userId as any;
 
     // handling transaction
     await db.transaction(async (transactionalEntityManager) => {
-      tenant.active = true;
-      tenant.created_by_id = parseInt(currentUserId);
+      const tenant = transactionalEntityManager.create(Tenant, {
+        name: req.body.name,
+        tenant_type_id: req.body.tenant_type_id || null,
+        description: req.body.description,
+        location: req.body.location,
+        active: true,
+        created_by_id: currentUserId || null,
+      });
 
+      // Create Tenant
       const response = await transactionalEntityManager.save(Tenant, tenant);
 
-      user.tenant_id = response.tenant_id;
-      user.user_type_id = UserTypes.ADM;
+      req.body.tenant_id = response.tenant_id;
+      req.body.user_type_id = UserTypes.ADM;
 
-      await createUser(user, transactionalEntityManager);
+      // Create Primary User
+      const userResponse = await createUser(
+        req.body,
+        transactionalEntityManager
+      );
+
+      // Update Primary User Id in Tenant
+      await transactionalEntityManager.update(Tenant, response.tenant_id, {
+        user_id: userResponse.user_id,
+      });
+
       await createSolrCore(response.tenant_id!);
       res.status(HttpStatusCode.CREATED).json({
         status: HttpStatusCode.CREATED,
@@ -114,7 +131,25 @@ export const getTenantList = async (
   next: NextFunction
 ) => {
   try {
-    const tenantList = await db.find(Tenant);
+    const tenantList = await db.find(Tenant, {
+      relations: ["user"],
+      select: {
+        tenant_id: true,
+        user_id: true,
+        tenant_type_id: true,
+        name: true,
+        description: true,
+        location: true,
+        active: true,
+        user: {
+          user_id: true,
+          user_name: true,
+          email_id: true,
+          active: true,
+        },
+      },
+    });
+    console.log(tenantList);
     res.status(HttpStatusCode.OK).json({ tenantList });
   } catch (error) {
     next(error);
@@ -168,21 +203,23 @@ export const tenantUpdate = async (
   next: NextFunction
 ) => {
   try {
-    const tenant: Tenant = req.body;
+    // const tenant: Tenant = req.body;
 
-    validateUpdateTenantInput(tenant);
+    validateUpdateTenantInput(req.body);
 
     const existingTenant = await db.findOne(Tenant, {
-      where: { tenant_id: tenant.tenant_id },
+      where: { tenant_id: req.body.tenant_id },
     });
     if (existingTenant) {
-      const response = await db.update(Tenant, tenant.tenant_id, {
-        name: tenant.name,
-        tenant_type_id: tenant.tenant_type_id,
-        description: tenant.description,
-        location: tenant.location,
-        active: tenant.active,
+      const tenant = db.create(Tenant, {
+        name: req.body.name,
+        tenant_type_id: req.body.tenant_type_id || null,
+        description: req.body.description,
+        location: req.body.location,
+        active: req.body.active,
       });
+
+      const response = await db.update(Tenant, tenant.tenant_id, tenant);
 
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
@@ -227,6 +264,22 @@ export const tenantView = async (
       throw new HttpBadRequest("Tenant Id is required");
     } else {
       const tenant = await db.findOne(Tenant, {
+        relations: ["user"],
+        select: {
+          tenant_id: true,
+          user_id: true,
+          tenant_type_id: true,
+          name: true,
+          description: true,
+          location: true,
+          active: true,
+          user: {
+            user_id: true,
+            user_name: true,
+            email_id: true,
+            active: true,
+          },
+        },
         where: { tenant_id: parseInt(tenantId) },
       });
       if (tenant) {

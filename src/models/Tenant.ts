@@ -1,16 +1,28 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  JoinColumn,
+  OneToOne,
+} from "typeorm";
+import User from "./User";
 
 @Entity()
 export default class Tenant {
-
   @PrimaryGeneratedColumn()
   tenant_id?: number;
+
+  @Column()
+  user_id?: number;
 
   @Column()
   name?: string;
 
   @Column()
-  tenant_type_id?: string;
+  tenant_type_id?: number;
 
   @Column()
   description?: string;
@@ -29,4 +41,8 @@ export default class Tenant {
 
   @UpdateDateColumn()
   last_updated_dt?: Date;
+
+  @OneToOne(() => User, (user) => user.tenant)
+  @JoinColumn({ name: "user_id" })
+  user!: User;
 }

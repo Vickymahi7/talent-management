@@ -16,7 +16,7 @@ const upload = multer({ storage: storage });
 const { SAD, ADM, HRU } = userTypes;
 
 // Swagger Docs Route
-router.get("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
+router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
 
 // Public Routes
 router.post("/login", user.userLogin);
@@ -33,6 +33,11 @@ router.get("/tenant/view/:id", requireUsers([SAD]), tenant.tenantView);
 router.delete("/tenant/delete/:id", requireUsers([SAD]), tenant.tenantDelete);
 
 // User Routes
+router.post(
+  "/user/resendactivation/:id",
+  requireUsers([SAD, ADM]),
+  user.resendActivationMail
+);
 router.post("/user/add", requireUsers([SAD, ADM]), user.userAdd);
 router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
 router.put("/user/update", requireUsers([SAD, ADM]), user.userUpdate);

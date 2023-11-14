@@ -16,35 +16,61 @@ export const generateAccessToken = (userData: any) => {
 };
 
 export const createUser = async (
-  user: User,
+  reqBody: any,
   dbConnection?: EntityManager
 ): Promise<any> => {
-  if (!dbConnection) dbConnection = db;
-  const existingUser = await db.findOne(User, {
-    where: { email_id: user.email_id },
-  });
-  if (existingUser) {
-    throw new HttpConflict("User already exists for this email");
-  } else {
-    const token = uuidv4();
-    user.active = false;
-    user.activation_token = token;
+  try {
+    if (!dbConnection) dbConnection = db;
+    const existingUser = await db.findOne(User, {
+      where: { email_id: reqBody.email_id },
+    });
+    if (existingUser) {
+      throw new HttpConflict("User already exists for this email");
+    } else {
+      const token = uuidv4();
 
-    await dbConnection.save(User, user);
+      const user = dbConnection.create(User, {
+        tenant_id: reqBody.tenant_id || null,
+        user_type_id: reqBody.user_type_id || null,
+        user_name: reqBody.user_name,
+        email_id: reqBody.email_id,
+        phone: reqBody.phone,
+        activation_token: token,
+        user_status_id: reqBody.user_status_id || null,
+        active: false,
+        created_by_id: reqBody.created_by_id || null,
+      });
 
-    const activationUrl = generateActivationUrl(user.activation_token);
+      const userResponse = await dbConnection.save(User, user);
 
-    const mailOptions = {
-      from: process.env.NODE_MAIL_EMAIL_ID,
-      to: user.email_id,
-      subject: "User Activation Mail",
-      html: `<p>Hi ${user.user_name},</p><p>Welcome to Talent Management.<br>Please click on <a href="${activationUrl}">this link</a> to activate your account</p><p>Sincerely,<br>Talent Management Team</p>`,
-    };
+      const activationUrl = generateActivationUrl(token);
 
-    // Send the email
-    const mailRes = sendMail(mailOptions);
+      sendUserActivationMail(user.email_id!, user.user_name!, activationUrl);
+
+      return userResponse;
+    }
+  } catch (error) {
+    throw error;
   }
 };
+
+export function sendUserActivationMail(
+  emailId: string,
+  userName: string,
+  activationUrl: string
+) {
+  const mailOptions = {
+    from: process.env.NODE_MAIL_EMAIL_ID,
+    to: emailId,
+    subject: "User Activation Mail",
+    html: `<p>Hi ${userName},</p><p>Welcome to Talent Management.<br>Please click on <a href="${activationUrl}">this link</a> to activate your account</p><p>Sincerely,<br>Talent Management Team</p>`,
+  };
+
+  // Send the email
+  const mailRes = sendMail(mailOptions);
+  console.log(mailRes);
+  return mailRes;
+}
 
 export function generateActivationUrl(token: string) {
   return process.env.WEB_APP_BASE_URL + TM_ACTIVATION_URL + token;

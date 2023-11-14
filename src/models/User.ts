@@ -4,7 +4,11 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
+  JoinColumn,
+  ManyToOne,
 } from "typeorm";
+import Tenant from "./Tenant";
 
 @Entity()
 export default class User {
@@ -25,6 +29,9 @@ export default class User {
 
   @Column()
   email_id?: string;
+
+  @Column()
+  phone?: string;
 
   @Column()
   access_token?: string;
@@ -49,4 +56,8 @@ export default class User {
 
   @UpdateDateColumn()
   last_updated_dt?: Date;
+
+  @OneToOne(() => Tenant, (tenant) => tenant.user)
+  @JoinColumn({ name: "user_id" })
+  tenant!: Tenant;
 }
