@@ -46,7 +46,7 @@ export const createUser = async (
 
       const activationUrl = generateActivationUrl(token);
 
-      sendUserActivationMail(
+      await sendUserActivationMail(
         reqBody.email_id!,
         reqBody.user_name!,
         activationUrl
@@ -59,7 +59,7 @@ export const createUser = async (
   }
 };
 
-export function sendUserActivationMail(
+export async function sendUserActivationMail(
   emailId: string,
   userName: string,
   activationUrl: string
@@ -72,7 +72,7 @@ export function sendUserActivationMail(
   };
 
   // Send the email
-  const mailRes = sendMail(mailOptions);
+  const mailRes = await sendMail(mailOptions);
   console.log(mailRes);
   return mailRes;
 }

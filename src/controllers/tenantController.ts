@@ -105,6 +105,7 @@ export const tenantAdd = async (
         user_id: userResponse.user_id,
       });
 
+      // Create Solr Core
       await createSolrCore(response.tenant_id!);
       res.status(HttpStatusCode.CREATED).json({
         status: HttpStatusCode.CREATED,
@@ -145,6 +146,8 @@ export const getTenantList = async (
         description: true,
         location: true,
         active: true,
+        last_updated_dt: true,
+        created_dt: true,
         user: {
           user_id: true,
           user_name: true,
@@ -282,6 +285,8 @@ export const tenantView = async (
           description: true,
           location: true,
           active: true,
+          created_dt: true,
+          last_updated_dt: true,
           user: {
             user_id: true,
             user_name: true,
