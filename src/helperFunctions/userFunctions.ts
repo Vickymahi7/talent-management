@@ -5,7 +5,7 @@ import User from "../models/User";
 import { AppDataSource } from "../data-source";
 import { HttpConflict } from "../types/errors";
 import { EntityManager } from "typeorm";
-import { sendMail } from "../utils/nodemail";
+import { sendMail } from "../utils/nodemailer";
 import { TM_ACTIVATION_URL } from "../utils/constants";
 dotenv.config();
 const db = AppDataSource.manager;
