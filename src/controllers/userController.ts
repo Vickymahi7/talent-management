@@ -10,7 +10,7 @@ import {
   HttpNotFound,
   HttpUnauthorized,
 } from "../types/errors";
-import HttpStatusCode from "../types/httpStatusCode";
+import { HttpStatusCode } from "../types/enums";
 import {
   validateAddUserInput,
   validateLoginInput,
@@ -150,12 +150,11 @@ export const userAdd = async (
 ) => {
   try {
     const tenantId = req.headers.tenantId?.toString();
-    let user: User = req.body;
-    user.tenant_id = parseInt(tenantId!);
+    req.body.tenant_id = parseInt(tenantId!);
 
-    validateAddUserInput(user);
+    validateAddUserInput(req.body);
 
-    const response = await createUser(user);
+    const response = await createUser(req.body);
 
     res.status(HttpStatusCode.CREATED).json({
       status: HttpStatusCode.CREATED,
@@ -215,7 +214,7 @@ export const getUserActivationDetails = async (
 /**
  * @swagger
  * /user/activate:
- *   put:
+ *   patch:
  *     summary: Activates New User
  *     tags: [User Activation]
  *     security:
@@ -366,7 +365,7 @@ export const getUserList = async (
 /**
  * @swagger
  * /user/update:
- *   put:
+ *   patch:
  *     summary: Update User Details
  *     tags: [Users]
  *     security:
@@ -414,23 +413,25 @@ export const userUpdate = async (
   next: NextFunction
 ) => {
   try {
-    const user: User = req.body;
+    const reqBody = req.body;
 
-    validateUpdateUserInput(user);
+    validateUpdateUserInput(reqBody);
 
     const isEmailExists = await db.findOne(User, {
-      where: { email_id: user.email_id, user_id: Not(user.user_id!) },
+      where: { email_id: reqBody.email_id, user_id: Not(reqBody.user_id!) },
     });
     if (isEmailExists) {
       throw new HttpConflict("User already exists for this email");
     } else {
-      const response = await db.update(User, user.user_id, {
-        user_type_id: user.user_type_id,
-        user_name: user.user_name,
-        email_id: user.email_id,
-        phone: user.phone,
-        user_status_id: user.user_status_id,
-        active: user.active,
+      const response = await db.update(User, reqBody.user_id, {
+        user_type_id:
+          reqBody.user_type_id == "" ? undefined : reqBody.user_type_id,
+        user_name: reqBody.user_name,
+        email_id: reqBody.email_id,
+        phone: reqBody.phone,
+        user_status_id:
+          reqBody.user_status_id == "" ? undefined : reqBody.user_status_id,
+        active: reqBody.active,
       });
 
       if (response.affected && response.affected > 0) {

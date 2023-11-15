@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import swaggerUi from "swagger-ui-express";
 import multer from "multer";
 import swagger from "../utils/swagger";
-import userTypes from "../types/userTypes";
+import { UserTypes } from "../types/enums";
 import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
 import * as tenant from "../controllers/tenantController";
 import * as user from "../controllers/userController";
@@ -13,7 +13,7 @@ const router: Router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const { SAD, ADM, HRU } = userTypes;
+const { SAD, ADM, HRU } = UserTypes;
 
 // Swagger Docs Route
 router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
@@ -28,7 +28,7 @@ router.use(checkUserAuth);
 // Tenant Routes
 router.post("/tenant/add", requireUsers([SAD]), tenant.tenantAdd);
 router.get("/tenant/list", requireUsers([SAD]), tenant.getTenantList);
-router.put("/tenant/update", requireUsers([SAD]), tenant.tenantUpdate);
+router.patch("/tenant/update", requireUsers([SAD]), tenant.tenantUpdate);
 router.get("/tenant/view/:id", requireUsers([SAD]), tenant.tenantView);
 router.delete("/tenant/delete/:id", requireUsers([SAD]), tenant.tenantDelete);
 
@@ -40,7 +40,7 @@ router.post(
 );
 router.post("/user/add", requireUsers([SAD, ADM]), user.userAdd);
 router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
-router.put("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
+router.patch("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
 
@@ -63,7 +63,7 @@ router.post(
   hrProfile.hrProfileResumeUpload
 );
 router.post("/hrprofile/add", requireUsers([ADM, HRU]), hrProfile.hrProfileAdd);
-router.put(
+router.patch(
   "/hrprofile/update",
   requireUsers([ADM, HRU]),
   hrProfile.hrProfileUpdate

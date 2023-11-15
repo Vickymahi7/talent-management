@@ -3,7 +3,6 @@ import { DataSource } from "typeorm";
 import User from "./models/User";
 import Tenant from "./models/Tenant";
 import dotenv from "dotenv";
-import { HttpInternalServerError } from "./types/errors";
 dotenv.config();
 
 export const AppDataSource = new DataSource({

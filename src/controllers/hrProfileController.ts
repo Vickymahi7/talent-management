@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import axios from "axios";
-import HttpStatusCode from "../types/httpStatusCode";
+import { HttpStatusCode } from "../types/enums";
 import { HttpNotFound, HttpBadRequest } from "../types/errors";
 import HrProfile from "../models/HrProfile";
 import dotenv from "dotenv";
@@ -277,7 +277,6 @@ export const hrProfilePhotoUpload = async (
       uploadLocation,
       file?.mimetype
     );
-    console.log(uploadRes);
 
     let updatePayload = {
       id: id,
@@ -348,8 +347,6 @@ export const hrProfileResumeUpload = async (
       uploadLocation,
       file?.mimetype
     );
-
-    console.log(uploadRes);
 
     let updatePayload = {
       id: id,
@@ -491,7 +488,7 @@ export const hrProfileAdd = async (
 /**
  * @swagger
  * /hrprofile/update:
- *   put:
+ *   patch:
  *     summary: Update Profile
  *     tags: [HR Profile]
  *     security:

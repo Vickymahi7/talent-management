@@ -1,4 +1,4 @@
-import HttpStatusCode from "../types/httpStatusCode";
+import { HttpStatusCode } from "../types/enums";
 
 class ApiError extends Error {
   public statusCode: number;

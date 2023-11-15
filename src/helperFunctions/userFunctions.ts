@@ -29,23 +29,28 @@ export const createUser = async (
     } else {
       const token = uuidv4();
 
-      const user = dbConnection.create(User, {
-        tenant_id: reqBody.tenant_id || null,
-        user_type_id: reqBody.user_type_id || null,
+      const userResponse = await dbConnection.save(User, {
+        tenant_id: reqBody.tenant_id == "" ? undefined : reqBody.tenant_id,
+        user_type_id:
+          reqBody.user_type_id == "" ? undefined : reqBody.user_type_id,
         user_name: reqBody.user_name,
         email_id: reqBody.email_id,
         phone: reqBody.phone,
         activation_token: token,
-        user_status_id: reqBody.user_status_id || null,
+        user_status_id:
+          reqBody.user_status_id == "" ? undefined : reqBody.user_status_id,
         active: false,
-        created_by_id: reqBody.created_by_id || null,
+        created_by_id:
+          reqBody.created_by_id == "" ? undefined : reqBody.created_by_id,
       });
-
-      const userResponse = await dbConnection.save(User, user);
 
       const activationUrl = generateActivationUrl(token);
 
-      sendUserActivationMail(user.email_id!, user.user_name!, activationUrl);
+      sendUserActivationMail(
+        reqBody.email_id!,
+        reqBody.user_name!,
+        activationUrl
+      );
 
       return userResponse;
     }

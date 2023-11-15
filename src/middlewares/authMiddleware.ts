@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { HttpForbidden, HttpUnauthorized } from "../types/errors";
 import dotenv from "dotenv";
-import HttpStatusCode from "../types/httpStatusCode";
 
 dotenv.config();
 

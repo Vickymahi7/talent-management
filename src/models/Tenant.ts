@@ -25,6 +25,9 @@ export default class Tenant {
   tenant_type_id?: number;
 
   @Column()
+  tenant_status_id?: number;
+
+  @Column()
   description?: string;
 
   @Column()

@@ -1,17 +1,17 @@
 import { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
-import User from "../models/User";
-import Tenant from "../models/Tenant";
 import { HttpBadRequest, HttpNotFound } from "../types/errors";
-import HttpStatusCode from "../types/httpStatusCode";
+import { HttpStatusCode } from "../types/enums";
 import {
   validateAddUserInput,
   validateAddTenantInput,
   validateUpdateTenantInput,
 } from "../validations/validations";
-import { createUser } from "../helperFunctions/userFunctions";
 import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
-import UserTypes from "../types/userTypes";
+import { UserTypes, AccountStatusId } from "../types/enums";
+import { EntityManager } from "typeorm";
+import Tenant from "../models/Tenant";
+import { createUser } from "../helperFunctions/userFunctions";
 
 const db = AppDataSource.manager;
 
@@ -37,6 +37,8 @@ const db = AppDataSource.manager;
  *                 type: string
  *               tenant_type_id:
  *                 type: number
+ *               tenant_status_id:
+ *                 type: number
  *               description:
  *                 type: string
  *               location:
@@ -54,6 +56,7 @@ const db = AppDataSource.manager;
  *             example:
  *               name: ABC Tech Pvt. Ltd.
  *               tenant_type_id: 1
+ *               tenant_status_id: 1
  *               description: This is a description
  *               location: Delhi
  *               user_name: Demo Tenant
@@ -76,17 +79,17 @@ export const tenantAdd = async (
 
     // handling transaction
     await db.transaction(async (transactionalEntityManager) => {
-      const tenant = transactionalEntityManager.create(Tenant, {
+      // Create Tenant
+      const response = await transactionalEntityManager.save(Tenant, {
         name: req.body.name,
-        tenant_type_id: req.body.tenant_type_id || null,
+        tenant_type_id:
+          req.body.tenant_type_id == "" ? undefined : req.body.tenant_type_id,
+        tenant_status_id: AccountStatusId.ACT,
         description: req.body.description,
         location: req.body.location,
         active: true,
-        created_by_id: currentUserId || null,
+        created_by_id: currentUserId == "" ? undefined : currentUserId,
       });
-
-      // Create Tenant
-      const response = await transactionalEntityManager.save(Tenant, tenant);
 
       req.body.tenant_id = response.tenant_id;
       req.body.user_type_id = UserTypes.ADM;
@@ -137,6 +140,7 @@ export const getTenantList = async (
         tenant_id: true,
         user_id: true,
         tenant_type_id: true,
+        tenant_status_id: true,
         name: true,
         description: true,
         location: true,
@@ -149,7 +153,6 @@ export const getTenantList = async (
         },
       },
     });
-    console.log(tenantList);
     res.status(HttpStatusCode.OK).json({ tenantList });
   } catch (error) {
     next(error);
@@ -159,7 +162,7 @@ export const getTenantList = async (
 /**
  * @swagger
  * /tenant/update:
- *   put:
+ *   patch:
  *     summary: Update Tenant Details
  *     tags: [Tenants]
  *     security:
@@ -175,6 +178,8 @@ export const getTenantList = async (
  *                 type: number
  *               tenant_type_id:
  *                 type: number
+ *               tenant_status_id:
+ *                 type: number
  *               name:
  *                 type: string
  *               description:
@@ -189,6 +194,7 @@ export const getTenantList = async (
  *             example:
  *               tenant_id: 1
  *               tenant_type_id: 1
+ *               tenant_status_id: 1
  *               name: ABC Tech Pvt. Ltd.
  *               description: This is a description
  *               location: Delhi
@@ -203,23 +209,25 @@ export const tenantUpdate = async (
   next: NextFunction
 ) => {
   try {
-    // const tenant: Tenant = req.body;
-
     validateUpdateTenantInput(req.body);
 
     const existingTenant = await db.findOne(Tenant, {
       where: { tenant_id: req.body.tenant_id },
     });
     if (existingTenant) {
-      const tenant = db.create(Tenant, {
+      const response = await db.update(Tenant, req.body.tenant_id, {
         name: req.body.name,
-        tenant_type_id: req.body.tenant_type_id || null,
+        user_id: req.body.user_id,
+        tenant_type_id:
+          req.body.tenant_type_id == "" ? undefined : req.body.tenant_type_id,
+        tenant_status_id:
+          req.body.tenant_status_id == ""
+            ? undefined
+            : req.body.tenant_status_id,
         description: req.body.description,
         location: req.body.location,
         active: req.body.active,
       });
-
-      const response = await db.update(Tenant, tenant.tenant_id, tenant);
 
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
@@ -269,6 +277,7 @@ export const tenantView = async (
           tenant_id: true,
           user_id: true,
           tenant_type_id: true,
+          tenant_status_id: true,
           name: true,
           description: true,
           location: true,
