@@ -180,13 +180,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: email_id
- *         description: search Email Id
- *         schema:
- *           type: string
- *       - in: query
- *         name: skills
- *         description: Search skills
+ *         name: searchText
+ *         description: To search Email Id or Skill or Summary
  *         schema:
  *           type: string
  *     responses:
@@ -199,14 +194,10 @@ export const getHrProfileList = async (
   next: NextFunction
 ) => {
   try {
-    const { email_id, skills } = req.query;
-    const field1 = `email_id:${email_id}`;
-    const field2 = `skills:${skills}`;
+    const { searchText } = req.query;
     let query = "*:*";
-    if (email_id && skills) {
-      query = `${field1} AND ${field2}`;
-    } else if (email_id || skills) {
-      query = email_id ? `${field1}` : field2;
+    if (searchText) {
+      query = `profile_title:${searchText} OR email_id:${searchText} OR skills:${searchText} OR summary:${searchText}`;
     }
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;

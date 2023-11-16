@@ -12,7 +12,7 @@ const db = AppDataSource.manager;
 
 export const generateAccessToken = (userData: any) => {
   const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET!;
-  return jwt.sign({ ...userData }, accessTokenSecret, { expiresIn: 60 * 30 });
+  return jwt.sign({ ...userData }, accessTokenSecret, { expiresIn: "1d" });
 };
 
 export const createUser = async (
