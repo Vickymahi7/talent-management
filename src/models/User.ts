@@ -48,13 +48,20 @@ export default class User {
   @Column()
   created_by_id?: number;
 
-  @CreateDateColumn()
-  created_dt?: Date;
-
   @Column()
   last_access?: Date;
 
-  @UpdateDateColumn()
+  @CreateDateColumn({
+    type: "timestamp",
+    default: () => "CURRENT_TIMESTAMP(6)",
+  })
+  created_dt?: Date;
+
+  @UpdateDateColumn({
+    type: "timestamp",
+    default: () => "CURRENT_TIMESTAMP(6)",
+    onUpdate: "CURRENT_TIMESTAMP(6)",
+  })
   last_updated_dt?: Date;
 
   @OneToOne(() => Tenant, (tenant) => tenant.user)

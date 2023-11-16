@@ -16,9 +16,8 @@ const errorHandler = (
     res
       .status(statusCode)
       .json({ status: statusCode, message: "Something went wrong" });
+    console.error(error);
   }
-  console.error(typeof error);
-  console.error(error);
 };
 
 export default errorHandler;

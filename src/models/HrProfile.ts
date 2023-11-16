@@ -3,6 +3,7 @@ export default class HrProfile {
   hr_profile_id?: string | number;
   tenant_id?: string | number;
   hr_profile_type_id?: string | number;
+  profile_title?: string;
   first_name?: string;
   last_name?: string;
   middle_name?: string;
@@ -52,6 +53,7 @@ export default class HrProfile {
     this.hr_profile_id = data.hr_profile_id;
     this.tenant_id = data.tenant_id;
     this.hr_profile_type_id = data.hr_profile_type_id;
+    this.profile_title = data.profile_title;
     this.first_name = data.first_name;
     this.last_name = data.last_name;
     this.middle_name = data.middle_name;

@@ -29,6 +29,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *           type: number
  *         hr_profile_type_id:
  *           type: number
+ *         profile_title:
+ *           type: string
  *         first_name:
  *           type: string
  *         last_name:
@@ -385,6 +387,7 @@ export const hrProfileResumeUpload = async (
  *             example:
  *               hr_profile: 1
  *               hr_profile_type_id: null
+ *               profile_title: Java Profile
  *               first_name: Vignesh
  *               last_name: Vicky
  *               middle_name:
@@ -502,6 +505,7 @@ export const hrProfileAdd = async (
  *             example:
  *               hr_profile_id: 1
  *               hr_profile_type_id: null
+ *               profile_title: Java Profile
  *               first_name: Vignesh
  *               last_name: Vicky
  *               middle_name:
