@@ -16,6 +16,9 @@ export const validateUpdateTenantInput = (tenant: Tenant): void => {
   if (!tenant.name) {
     throw new HttpBadRequest("Name is required");
   }
+  if (!tenant.tenant_status_id) {
+    throw new HttpBadRequest("Tenant Status is required");
+  }
 };
 
 export const validateLoginInput = (
@@ -48,6 +51,9 @@ export const validateUpdateUserInput = (user: User): void => {
   }
   if (!user.email_id) {
     throw new HttpBadRequest("Email ID is required");
+  }
+  if (!user.user_status_id) {
+    throw new HttpBadRequest("User Status is required");
   }
 };
 

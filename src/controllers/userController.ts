@@ -10,7 +10,7 @@ import {
   HttpNotFound,
   HttpUnauthorized,
 } from "../types/errors";
-import { HttpStatusCode } from "../types/enums";
+import { AccountStatusId, HttpStatusCode } from "../types/enums";
 import {
   validateAddUserInput,
   validateLoginInput,
@@ -22,6 +22,7 @@ import {
   generateActivationUrl,
   sendUserActivationMail,
 } from "../helperFunctions/userFunctions";
+import Tenant from "../models/Tenant";
 
 dotenv.config();
 const db = AppDataSource.manager;
@@ -79,6 +80,17 @@ export const userLogin = async (
     const user = await db.findOne(User, {
       where: { email_id: email_id },
     });
+    const tenant = await db.findOne(Tenant, {
+      where: { tenant_id: user?.tenant_id },
+    });
+
+    const isActiveUser = user?.user_status_id == AccountStatusId.ACTIVE;
+    const isActiveTenant = tenant?.tenant_status_id == AccountStatusId.ACTIVE;
+
+    if (!user?.active || !isActiveUser || !isActiveTenant) {
+      throw new HttpUnauthorized("User Inactive");
+    }
+
     if (user) {
       const isPaswordMatched = await bcrypt.compare(password, user.password!);
       if (isPaswordMatched) {
@@ -257,6 +269,7 @@ export const activateUser = async (
     const response = await db.update(User, user.user_id, {
       password: hashedPassword,
       active: true,
+      user_status_id: AccountStatusId.ACTIVE,
       activation_token: "",
     });
 
@@ -402,7 +415,6 @@ export const getUserList = async (
  *               email_id: demouser@demo.com
  *               phone: 9876543210
  *               user_status_id: null
- *               active: true
  *     responses:
  *       200:
  *         description: OK.
@@ -429,9 +441,7 @@ export const userUpdate = async (
         user_name: reqBody.user_name,
         email_id: reqBody.email_id,
         phone: reqBody.phone,
-        user_status_id:
-          reqBody.user_status_id == "" ? undefined : reqBody.user_status_id,
-        active: reqBody.active,
+        user_status_id: reqBody.user_status_id,
       });
 
       if (response.affected && response.affected > 0) {

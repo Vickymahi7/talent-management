@@ -197,7 +197,7 @@ export const getHrProfileList = async (
     const { searchText } = req.query;
     let query = "*:*";
     if (searchText) {
-      query = `profile_title:${searchText} OR email_id:${searchText} OR skills:${searchText} OR summary:${searchText}`;
+      query = `profile_title:"${searchText}" OR email_id:"${searchText}" OR skills:"${searchText}" OR summary:"${searchText}"`;
     }
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;

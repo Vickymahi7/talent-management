@@ -84,7 +84,7 @@ export const tenantAdd = async (
         name: req.body.name,
         tenant_type_id:
           req.body.tenant_type_id == "" ? undefined : req.body.tenant_type_id,
-        tenant_status_id: AccountStatusId.ACT,
+        tenant_status_id: AccountStatusId.ACTIVE,
         description: req.body.description,
         location: req.body.location,
         active: true,

@@ -7,6 +7,7 @@ import { HttpConflict } from "../types/errors";
 import { EntityManager } from "typeorm";
 import { sendMail } from "../utils/nodemailer";
 import { TM_ACTIVATION_URL } from "../utils/constants";
+import { AccountStatusId } from "../types/enums";
 dotenv.config();
 const db = AppDataSource.manager;
 
@@ -37,8 +38,7 @@ export const createUser = async (
         email_id: reqBody.email_id,
         phone: reqBody.phone,
         activation_token: token,
-        user_status_id:
-          reqBody.user_status_id == "" ? undefined : reqBody.user_status_id,
+        user_status_id: AccountStatusId.IN_Active,
         active: false,
         created_by_id:
           reqBody.created_by_id == "" ? undefined : reqBody.created_by_id,
