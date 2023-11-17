@@ -194,7 +194,7 @@ export const getHrProfileList = async (
   next: NextFunction
 ) => {
   try {
-    const { searchText } = req.query;
+    const { searchText, rows, start } = req.query;
     let query = "*:*";
     if (searchText) {
       query = `profile_title:"${searchText}" OR email_id:"${searchText}" OR skills:"${searchText}" OR summary:"${searchText}"`;
@@ -203,7 +203,7 @@ export const getHrProfileList = async (
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
 
     let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, {
-      params: { q: query, "q.op": "AND" },
+      params: { q: query, "q.op": "AND", rows, start },
     });
     const { numFound } = response.data.response;
 
@@ -215,7 +215,7 @@ export const getHrProfileList = async (
       docs: data.docs?.map((item) => JSON.parse(item)),
     }));
 
-    res.status(HttpStatusCode.OK).json({ numFound, hrProfileList });
+    res.status(HttpStatusCode.OK).json({ start, numFound, hrProfileList });
   } catch (error) {
     next(error);
   }
