@@ -181,7 +181,12 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *     parameters:
  *       - in: query
  *         name: searchText
- *         description: To search Email Id or Skill or Summary
+ *         description: To search Profile Title, Email Id or Skill or Summary
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status_id
+ *         description: To search based on Status Id
  *         schema:
  *           type: string
  *     responses:
@@ -194,10 +199,13 @@ export const getHrProfileList = async (
   next: NextFunction
 ) => {
   try {
-    const { searchText, rows, start } = req.query;
+    const { searchText, status_id, rows, start } = req.query;
     let query = "*:*";
     if (searchText) {
       query = `profile_title:"${searchText}" OR email_id:"${searchText}" OR skills:"${searchText}" OR summary:"${searchText}"`;
+    }
+    if (status_id) {
+      query += ` AND status_id: ${status_id}`;
     }
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
