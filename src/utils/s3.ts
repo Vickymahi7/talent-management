@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   PutObjectCommandInput,
+  DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 
 const bucketName = process.env.AWS_BUCKET_NAME;
@@ -27,4 +28,21 @@ export function uploadFile(fileBuffer, fileKey, mimetype) {
   };
 
   return s3Client.send(new PutObjectCommand(uploadParams));
+}
+
+export function deleteFile(fileKey) {
+  const input = {
+    Bucket: bucketName,
+    Delete: {
+      Objects: [
+        {
+          Key: fileKey,
+        },
+      ],
+      Quiet: true || false,
+    },
+  };
+  const command = new DeleteObjectsCommand(input);
+
+  return s3Client.send(command);
 }

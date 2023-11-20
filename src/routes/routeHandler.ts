@@ -62,6 +62,11 @@ router.post(
   upload.single("file"),
   hrProfile.hrProfileResumeUpload
 );
+router.delete(
+  "/hrprofile/deleteresume/:id",
+  requireUsers([ADM, HRU]),
+  hrProfile.deleteHrProfileResume
+);
 router.post("/hrprofile/add", requireUsers([ADM, HRU]), hrProfile.hrProfileAdd);
 router.patch(
   "/hrprofile/update",

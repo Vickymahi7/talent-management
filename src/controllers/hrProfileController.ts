@@ -10,7 +10,7 @@ import {
   validateUpdateHrProfileInput,
   validateResumeUpload,
 } from "../validations/validations";
-import { uploadFile } from "../utils/s3";
+import { deleteFile, uploadFile } from "../utils/s3";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -353,6 +353,7 @@ export const hrProfileResumeUpload = async (
       id: id,
       user_id: userId,
       resume_url: { set: fileUrl },
+      last_updated_dt: new Date(),
     };
 
     await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
@@ -364,6 +365,69 @@ export const hrProfileResumeUpload = async (
       status: HttpStatusCode.OK,
       message: "Resume Uploaded Successfully",
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/deleteresume:
+ *   delete:
+ *     summary: Delete HR Profile Resume
+ *     tags: [HR Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+export const deleteHrProfileResume = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const userId = req.headers.userId;
+    const id = req.params.id;
+
+    if (id) {
+      const uploadLocation = process.env.AWS_RESUME_PATH + id;
+
+      const uploadRes = await deleteFile(uploadLocation);
+      console.log(uploadRes.$metadata.httpStatusCode);
+
+      if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
+        let updatePayload = {
+          id: id,
+          user_id: userId,
+          resume_url: { set: null },
+          last_updated_dt: new Date(),
+        };
+
+        await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
+          add: { doc: updatePayload },
+          commit: {},
+        });
+
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "Resume Deleted Successfully",
+        });
+      } else {
+        throw new HttpBadRequest("Error deleting file");
+      }
+    } else {
+      throw new HttpBadRequest("File cannot be found");
+    }
   } catch (error) {
     next(error);
   }
