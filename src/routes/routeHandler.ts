@@ -67,6 +67,17 @@ router.delete(
   requireUsers([ADM, HRU]),
   hrProfile.deleteHrProfileResume
 );
+router.post(
+  "/hrprofile/docupload",
+  requireUsers([ADM, HRU]),
+  upload.single("file"),
+  hrProfile.hrProfileDocUpload
+);
+router.patch(
+  "/hrprofile/deletedoc",
+  requireUsers([ADM, HRU]),
+  hrProfile.deleteHrProfileDoc
+);
 router.post("/hrprofile/add", requireUsers([ADM, HRU]), hrProfile.hrProfileAdd);
 router.patch(
   "/hrprofile/update",

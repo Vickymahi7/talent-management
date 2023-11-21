@@ -3,12 +3,14 @@ import axios from "axios";
 import { HttpStatusCode } from "../types/enums";
 import { HttpNotFound, HttpBadRequest } from "../types/errors";
 import HrProfile from "../models/HrProfile";
+import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import {
   validatePhotoUpload,
   validateAddHrProfileInput,
   validateUpdateHrProfileInput,
   validateResumeUpload,
+  validateDocUpload,
 } from "../validations/validations";
 import { deleteFile, uploadFile } from "../utils/s3";
 dotenv.config();
@@ -403,7 +405,6 @@ export const deleteHrProfileResume = async (
       const uploadLocation = process.env.AWS_RESUME_PATH + id;
 
       const uploadRes = await deleteFile(uploadLocation);
-      console.log(uploadRes.$metadata.httpStatusCode);
 
       if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
         let updatePayload = {
@@ -412,6 +413,181 @@ export const deleteHrProfileResume = async (
           resume_url: { set: null },
           last_updated_dt: new Date(),
         };
+
+        await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
+          add: { doc: updatePayload },
+          commit: {},
+        });
+
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "Resume Deleted Successfully",
+        });
+      } else {
+        throw new HttpBadRequest("Error deleting file");
+      }
+    } else {
+      throw new HttpBadRequest("File cannot be found");
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/docupload:
+ *   post:
+ *     summary: Upload HR Profile Resume
+ *     tags: [HR Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: number
+ *               user_id:
+ *                 type: number
+ *               hr_profile_id:
+ *                 type: number
+ *               email_id:
+ *                 type: string
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *             required:
+ *               - id
+ *               - user_id
+ *               - hr_profile_id
+ *               - email_id
+ *               - file
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+export const hrProfileDocUpload = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const file = req.file;
+    validateDocUpload(req);
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const {
+      id,
+      hr_profile_id,
+      user_id,
+      email_id,
+      title,
+      docs,
+      _version_,
+      ...updateValues
+    } = req.body;
+
+    updateValues.docs = docs ? JSON.parse(docs) : [];
+    console.log(docs);
+    console.log(updateValues.docs);
+
+    const docId = uuidv4();
+    const fileBuffer = file?.buffer;
+    const fileExtension = file?.originalname.split(".").pop();
+    const uploadLocation =
+      process.env.AWS_DOC_PATH! + docId + "." + fileExtension;
+    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+
+    const uploadDoc = await uploadFile(
+      fileBuffer,
+      uploadLocation,
+      file?.mimetype
+    );
+    const newDoc = {
+      id: docId,
+      title: title,
+      path: fileUrl,
+    };
+    updateValues.docs.push(newDoc);
+
+    console.log(updateValues.docs);
+    const hrProfile = new HrProfile(updateValues);
+    console.log(hrProfile.docs);
+    let updatePayload = {
+      id: id,
+      user_id: user_id,
+      hr_profile_id: { set: hrProfile.hr_profile_id },
+      email_id: { set: hrProfile.email_id },
+      docs: { set: hrProfile.docs },
+      last_updated_dt: new Date(),
+    };
+
+    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
+      add: { doc: updatePayload },
+      commit: {},
+    });
+
+    res.status(HttpStatusCode.OK).json({
+      status: HttpStatusCode.OK,
+      message: "Profile Updated Successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/deletedoc:
+ *   patch:
+ *     summary: Delete HR Profile Document
+ *     tags: [HR Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/HrProfile'
+ *             example:
+ *               hr_profile_id: 1
+ *               email_id: demouser@demo.com
+ *               user_id: 1
+ *               doc_id: 1
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const deleteHrProfileDoc = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    validateUpdateHrProfileInput(req);
+    const { id, user_id, doc_id, _version_, ...updateValues } = req.body;
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+
+    if (doc_id) {
+      const uploadLocation = process.env.AWS_DOC_PATH + doc_id;
+
+      const uploadRes = await deleteFile(uploadLocation);
+
+      if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
+        updateValues.last_updated_dt = new Date();
+        const hrProfile = new HrProfile(updateValues);
+        let updatePayload = {
+          id: id,
+          user_id: user_id,
+        };
+        for (const prop in updateValues) {
+          updatePayload[prop] = { set: hrProfile[prop] };
+        }
 
         await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
           add: { doc: updatePayload },

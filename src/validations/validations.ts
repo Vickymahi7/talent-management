@@ -52,8 +52,11 @@ export const validateUpdateUserInput = (user: User): void => {
   if (!user.email_id) {
     throw new HttpBadRequest("Email ID is required");
   }
-  if (!user.user_status_id) {
+  if (user.hasOwnProperty("user_status_id") && !user.user_status_id) {
     throw new HttpBadRequest("User Status is required");
+  }
+  if (user.hasOwnProperty("user_type_id") && !user.user_type_id) {
+    throw new HttpBadRequest("User Type is required");
   }
 };
 
@@ -76,6 +79,20 @@ export const validateResumeUpload = (req: Request): void => {
 
   if (!req.file) {
     throw new HttpBadRequest("Please select a resume to upload");
+  }
+
+  const fileExtension = req.file?.originalname.split(".").pop()?.toLowerCase();
+
+  if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
+    throw new HttpBadRequest("Unsupported File Format");
+  }
+};
+
+export const validateDocUpload = (req: Request): void => {
+  const allowedExtensions = ["pdf", "doc", "docx", "txt", "jpg", "jpeg", "png"];
+
+  if (!req.file) {
+    throw new HttpBadRequest("Please select a file to upload");
   }
 
   const fileExtension = req.file?.originalname.split(".").pop()?.toLowerCase();
