@@ -1,6 +1,8 @@
 import axios from "axios";
 import dotenv from "dotenv";
 import { HttpInternalServerError } from "../types/errors";
+import QueryParams from "../types/QueryParams";
+import HrProfile from "../models/HrProfile";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL!;
@@ -18,4 +20,56 @@ export const createSolrCore = async (tenantId: number) => {
   } catch (error) {
     throw new HttpInternalServerError(`Something went wrong!`);
   }
+};
+
+export const getHrProfileFromSolr = async (
+  solrCore: string,
+  queryParams: QueryParams
+) => {
+  try {
+    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, {
+      params: queryParams,
+    });
+    const { numFound } = response.data.response;
+
+    const hrProfileList = response.data.response.docs.map((data: any) => ({
+      ...data,
+      work_experience: data.work_experience?.map((item) => JSON.parse(item)),
+      project: data.project?.map((item) => JSON.parse(item)),
+      education: data.education?.map((item) => JSON.parse(item)),
+      docs: data.docs?.map((item) => JSON.parse(item)),
+    }));
+
+    return { hrProfileList, numFound };
+  } catch (error) {
+    throw new HttpInternalServerError(`Something went wrong!`);
+  }
+};
+
+export async function hrProfileSolrUpdate(
+  req: any,
+  reqData: any
+): Promise<any> {
+  const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+  // id should be sent separately
+  // _version_ should not be sent while updating
+  const { id, _version_, ...updateValues } = reqData;
+
+  updateValues.last_updated_dt = new Date();
+
+  const hrProfile = new HrProfile(updateValues);
+
+  let updatePayload = {
+    id: id,
+  };
+  for (const prop in updateValues) {
+    updatePayload[prop] = { set: hrProfile[prop] };
+  }
+
+  console.log(updatePayload);
+
+  return await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
+    add: { doc: updatePayload },
+    commit: {},
+  });
 }

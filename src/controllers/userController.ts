@@ -10,7 +10,7 @@ import {
   HttpNotFound,
   HttpUnauthorized,
 } from "../types/errors";
-import { AccountStatusId, HttpStatusCode } from "../types/enums";
+import { AccountStatusId, HttpStatusCode } from "../enums/enums";
 import {
   validateAddUserInput,
   validateLoginInput,
@@ -25,7 +25,6 @@ import {
 import Tenant from "../models/Tenant";
 
 dotenv.config();
-const db = AppDataSource.manager;
 
 /**
  * @swagger
@@ -77,21 +76,20 @@ export const userLogin = async (
     const { email_id, password } = req.body;
     validateLoginInput(email_id, password);
 
-    const user = await db.findOne(User, {
+    const user = await AppDataSource.manager.findOne(User, {
       where: { email_id: email_id },
     });
-    const tenant = await db.findOne(Tenant, {
+    const tenant = await AppDataSource.manager.findOne(Tenant, {
       where: { tenant_id: user?.tenant_id },
     });
 
     const isActiveUser = user?.user_status_id == AccountStatusId.ACTIVE;
     const isActiveTenant = tenant?.tenant_status_id == AccountStatusId.ACTIVE;
 
-    if (!user?.active || !isActiveUser || !isActiveTenant) {
-      throw new HttpUnauthorized("User Inactive");
-    }
-
     if (user) {
+      if (!user.active || !isActiveUser || !isActiveTenant) {
+        throw new HttpUnauthorized("User Inactive");
+      }
       const isPaswordMatched = await bcrypt.compare(password, user.password!);
       if (isPaswordMatched) {
         const userData = {
@@ -208,7 +206,7 @@ export const getUserActivationDetails = async (
     if (!token) {
       throw new HttpNotFound("Bad Request");
     } else {
-      const user = await db.findOne(User, {
+      const user = await AppDataSource.manager.findOne(User, {
         select: { user_id: true, email_id: true, active: true },
         where: { activation_token: token },
       });
@@ -266,7 +264,7 @@ export const activateUser = async (
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(user.password!, salt);
 
-    const response = await db.update(User, user.user_id, {
+    const response = await AppDataSource.manager.update(User, user.user_id, {
       password: hashedPassword,
       active: true,
       user_status_id: AccountStatusId.ACTIVE,
@@ -314,7 +312,7 @@ export const resendActivationMail = async (
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
-      const user = await db.findOne(User, {
+      const user = await AppDataSource.manager.findOne(User, {
         select: {
           user_id: true,
           email_id: true,
@@ -366,7 +364,7 @@ export const getUserList = async (
 ) => {
   try {
     const tenantId = req.headers.tenantId as string;
-    const userList = await db.find(User, {
+    const userList = await AppDataSource.manager.find(User, {
       where: { tenant_id: parseInt(tenantId) },
     });
     res.status(HttpStatusCode.OK).json({ userList });
@@ -429,20 +427,24 @@ export const userUpdate = async (
 
     validateUpdateUserInput(reqBody);
 
-    const isEmailExists = await db.findOne(User, {
+    const isEmailExists = await AppDataSource.manager.findOne(User, {
       where: { email_id: reqBody.email_id, user_id: Not(reqBody.user_id!) },
     });
     if (isEmailExists) {
       throw new HttpConflict("User already exists for this email");
     } else {
-      const response = await db.update(User, reqBody.user_id, {
-        user_type_id:
-          reqBody.user_type_id == "" ? undefined : reqBody.user_type_id,
-        user_name: reqBody.user_name,
-        email_id: reqBody.email_id,
-        phone: reqBody.phone,
-        user_status_id: reqBody.user_status_id,
-      });
+      const response = await AppDataSource.manager.update(
+        User,
+        reqBody.user_id,
+        {
+          user_type_id: reqBody.user_type_id,
+          user_name: reqBody.user_name,
+          email_id: reqBody.email_id,
+          phone: reqBody.phone,
+          user_status_id: reqBody.user_status_id,
+          last_updated_dt: reqBody.last_updated_dt,
+        }
+      );
 
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
@@ -486,7 +488,7 @@ export const userView = async (
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
-      const user = await db.findOne(User, {
+      const user = await AppDataSource.manager.findOne(User, {
         where: { user_id: parseInt(userId) },
       });
       if (user) {
@@ -528,7 +530,7 @@ export const userDelete = async (
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
-      const response = await db.delete(User, userId);
+      const response = await AppDataSource.manager.delete(User, userId);
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,

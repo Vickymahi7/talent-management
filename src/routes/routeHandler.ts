@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import swaggerUi from "swagger-ui-express";
 import multer from "multer";
 import swagger from "../utils/swagger";
-import { UserTypes } from "../types/enums";
+import { UserTypes } from "../enums/enums";
 import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
 import * as tenant from "../controllers/tenantController";
 import * as user from "../controllers/userController";

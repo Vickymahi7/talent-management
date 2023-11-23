@@ -1,14 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { HttpBadRequest, HttpNotFound } from "../types/errors";
-import { HttpStatusCode } from "../types/enums";
+import { HttpStatusCode } from "../enums/enums";
 import {
   validateAddUserInput,
   validateAddTenantInput,
   validateUpdateTenantInput,
 } from "../validations/validations";
 import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
-import { UserTypes, AccountStatusId } from "../types/enums";
+import { UserTypes, AccountStatusId } from "../enums/enums";
 import { EntityManager } from "typeorm";
 import Tenant from "../models/Tenant";
 import { createUser } from "../helperFunctions/userFunctions";

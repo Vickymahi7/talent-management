@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import axios from "axios";
-import { HttpStatusCode } from "../types/enums";
+import { HttpStatusCode } from "../enums/enums";
 import { HttpNotFound, HttpBadRequest } from "../types/errors";
 import HrProfile from "../models/HrProfile";
 import { v4 as uuidv4 } from "uuid";
@@ -13,6 +13,11 @@ import {
   validateDocUpload,
 } from "../validations/validations";
 import { deleteFile, uploadFile } from "../utils/s3";
+import {
+  getHrProfileFromSolr,
+  hrProfileSolrUpdate,
+} from "../helperFunctions/hrProfleFunctions";
+import QueryParams from "../types/QueryParams";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -212,18 +217,15 @@ export const getHrProfileList = async (
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
 
-    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, {
-      params: { q: query, "q.op": "AND", rows, start },
-    });
-    const { numFound } = response.data.response;
-
-    const hrProfileList = response.data.response.docs.map((data: any) => ({
-      ...data,
-      work_experience: data.work_experience?.map((item) => JSON.parse(item)),
-      project: data.project?.map((item) => JSON.parse(item)),
-      education: data.education?.map((item) => JSON.parse(item)),
-      docs: data.docs?.map((item) => JSON.parse(item)),
-    }));
+    const queryParams: QueryParams = {
+      q: query,
+      rows: rows as string,
+      start: start as string,
+    };
+    const { numFound, hrProfileList } = await getHrProfileFromSolr(
+      solrCore,
+      queryParams
+    );
 
     res.status(HttpStatusCode.OK).json({ start, numFound, hrProfileList });
   } catch (error) {
@@ -265,8 +267,6 @@ export const hrProfilePhotoUpload = async (
   next: NextFunction
 ) => {
   try {
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const userId = req.headers.userId;
     const id = req.body.id;
     const file = req.file;
     validatePhotoUpload(req);
@@ -281,16 +281,9 @@ export const hrProfilePhotoUpload = async (
       file?.mimetype
     );
 
-    let updatePayload = {
-      id: id,
-      user_id: userId,
-      photo_url: { set: fileUrl },
-    };
+    req.body.photo_url = fileUrl;
 
-    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
-      add: { doc: updatePayload },
-      commit: {},
-    });
+    const response = await hrProfileSolrUpdate(req, req.body);
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
@@ -335,8 +328,6 @@ export const hrProfileResumeUpload = async (
   next: NextFunction
 ) => {
   try {
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const userId = req.headers.userId;
     const id = req.body.id;
     const file = req.file;
     validateResumeUpload(req);
@@ -351,17 +342,9 @@ export const hrProfileResumeUpload = async (
       file?.mimetype
     );
 
-    let updatePayload = {
-      id: id,
-      user_id: userId,
-      resume_url: { set: fileUrl },
-      last_updated_dt: new Date(),
-    };
+    req.body.resume_url = fileUrl;
 
-    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
-      add: { doc: updatePayload },
-      commit: {},
-    });
+    const response = await hrProfileSolrUpdate(req, req.body);
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
@@ -397,8 +380,6 @@ export const deleteHrProfileResume = async (
   next: NextFunction
 ) => {
   try {
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const userId = req.headers.userId;
     const id = req.params.id;
 
     if (id) {
@@ -407,17 +388,8 @@ export const deleteHrProfileResume = async (
       const uploadRes = await deleteFile(uploadLocation);
 
       if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
-        let updatePayload = {
-          id: id,
-          user_id: userId,
-          resume_url: { set: null },
-          last_updated_dt: new Date(),
-        };
-
-        await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
-          add: { doc: updatePayload },
-          commit: {},
-        });
+        const data = { id, resume_url: null };
+        const response = await hrProfileSolrUpdate(req, data);
 
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
@@ -438,7 +410,7 @@ export const deleteHrProfileResume = async (
  * @swagger
  * /hrprofile/docupload:
  *   post:
- *     summary: Upload HR Profile Resume
+ *     summary: Upload HR Profile Documents
  *     tags: [HR Profile]
  *     security:
  *       - bearerAuth: []
@@ -451,20 +423,17 @@ export const deleteHrProfileResume = async (
  *             properties:
  *               id:
  *                 type: number
- *               user_id:
- *                 type: number
- *               hr_profile_id:
- *                 type: number
- *               email_id:
+ *               title:
+ *                 type: string
+ *               docs:
  *                 type: string
  *               file:
  *                 type: string
  *                 format: binary
  *             required:
  *               - id
- *               - user_id
- *               - hr_profile_id
- *               - email_id
+ *               - title
+ *               - docs
  *               - file
  *     responses:
  *       200:
@@ -479,21 +448,10 @@ export const hrProfileDocUpload = async (
   try {
     const file = req.file;
     validateDocUpload(req);
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const {
-      id,
-      hr_profile_id,
-      user_id,
-      email_id,
-      title,
-      docs,
-      _version_,
-      ...updateValues
-    } = req.body;
+    const { title } = req.body;
 
-    updateValues.docs = docs ? JSON.parse(docs) : [];
-    console.log(docs);
-    console.log(updateValues.docs);
+    // docs will be a JSON string, because of FormData
+    const docs = req.body.docs ? JSON.parse(req.body.docs) : [];
 
     const docId = uuidv4();
     const fileBuffer = file?.buffer;
@@ -512,24 +470,11 @@ export const hrProfileDocUpload = async (
       title: title,
       path: fileUrl,
     };
-    updateValues.docs.push(newDoc);
 
-    console.log(updateValues.docs);
-    const hrProfile = new HrProfile(updateValues);
-    console.log(hrProfile.docs);
-    let updatePayload = {
-      id: id,
-      user_id: user_id,
-      hr_profile_id: { set: hrProfile.hr_profile_id },
-      email_id: { set: hrProfile.email_id },
-      docs: { set: hrProfile.docs },
-      last_updated_dt: new Date(),
-    };
+    docs.push(newDoc);
+    req.body.docs = docs;
 
-    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
-      add: { doc: updatePayload },
-      commit: {},
-    });
+    const response = await hrProfileSolrUpdate(req, req.body);
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
@@ -553,12 +498,22 @@ export const hrProfileDocUpload = async (
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/HrProfile'
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: sting
+ *               doc_id:
+ *                 type: string
+ *               path:
+ *                 type: string
+ *             required:
+ *               - id
+ *               - doc_id
+ *               - path
  *             example:
- *               hr_profile_id: 1
- *               email_id: demouser@demo.com
- *               user_id: 1
+ *               id: 
  *               doc_id: 1
+ *               path:
  *     responses:
  *       200:
  *         description: OK.
@@ -569,30 +524,17 @@ export const deleteHrProfileDoc = async (
   next: NextFunction
 ) => {
   try {
-    validateUpdateHrProfileInput(req);
-    const { id, user_id, doc_id, _version_, ...updateValues } = req.body;
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const { doc_id, path } = req.body;
 
     if (doc_id) {
-      const uploadLocation = process.env.AWS_DOC_PATH + doc_id;
+      const fileExtension = path?.split(".").pop();
+      const uploadLocation =
+        process.env.AWS_DOC_PATH! + doc_id + "." + fileExtension;
 
       const uploadRes = await deleteFile(uploadLocation);
 
       if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
-        updateValues.last_updated_dt = new Date();
-        const hrProfile = new HrProfile(updateValues);
-        let updatePayload = {
-          id: id,
-          user_id: user_id,
-        };
-        for (const prop in updateValues) {
-          updatePayload[prop] = { set: hrProfile[prop] };
-        }
-
-        await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
-          add: { doc: updatePayload },
-          commit: {},
-        });
+        const response = await hrProfileSolrUpdate(req, req.body);
 
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
@@ -822,24 +764,8 @@ export const hrProfileUpdate = async (
 ) => {
   try {
     validateUpdateHrProfileInput(req);
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-    const { id, user_id, _version_, ...updateValues } = req.body;
 
-    updateValues.last_updated_dt = new Date();
-
-    const hrProfile = new HrProfile(updateValues);
-    let updatePayload = {
-      id: id,
-      user_id: user_id,
-    };
-    for (const prop in updateValues) {
-      updatePayload[prop] = { set: hrProfile[prop] };
-    }
-
-    await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
-      add: { doc: updatePayload },
-      commit: {},
-    });
+    const response = await hrProfileSolrUpdate(req, req.body);
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
@@ -874,29 +800,20 @@ export const hrProfileView = async (
   next: NextFunction
 ) => {
   try {
-    let id = req.params.id;
+    const id = req.params.id;
     if (!id) {
       throw new HttpBadRequest("Id is required");
     }
-
-    let query = `id:${id}`;
-
+    const query = `id:${id}`;
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
 
-    let response = await axios.get(`${SOLR_BASE_URL}/${solrCore}/select`, {
-      params: { q: query, "q.op": "AND" },
-    });
+    const queryParams: QueryParams = {
+      q: query,
+    };
+    const { hrProfileList } = await getHrProfileFromSolr(solrCore, queryParams);
 
-    if (response.data.response.docs.length > 0) {
-      const hrProfile = response.data.response.docs[0];
-      hrProfile.work_experience = hrProfile.work_experience?.map((item) =>
-        JSON.parse(item)
-      );
-      hrProfile.project = hrProfile.project?.map((item) => JSON.parse(item));
-      hrProfile.education = hrProfile.education?.map((item) =>
-        JSON.parse(item)
-      );
-      hrProfile.docs = hrProfile.docs?.map((item) => JSON.parse(item));
+    if (hrProfileList.length > 0) {
+      const hrProfile = hrProfileList[0];
 
       return res.status(HttpStatusCode.OK).json({ hrProfile });
     } else {

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ApiError } from "../types/errors";
-import { HttpStatusCode } from "../types/enums";
+import { HttpStatusCode } from "../enums/enums";
 
 const errorHandler = (
   error: ApiError,

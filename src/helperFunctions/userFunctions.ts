@@ -7,7 +7,7 @@ import { HttpConflict } from "../types/errors";
 import { EntityManager } from "typeorm";
 import { sendMail } from "../utils/nodemailer";
 import { TM_ACTIVATION_URL } from "../utils/constants";
-import { AccountStatusId } from "../types/enums";
+import { AccountStatusId } from "../enums/enums";
 dotenv.config();
 const db = AppDataSource.manager;
 
@@ -42,6 +42,8 @@ export const createUser = async (
         active: false,
         created_by_id:
           reqBody.created_by_id == "" ? undefined : reqBody.created_by_id,
+        last_updated_dt: reqBody.last_updated_dt,
+        created_dt: reqBody.created_dt,
       });
 
       const activationUrl = generateActivationUrl(token);
@@ -73,7 +75,6 @@ export async function sendUserActivationMail(
 
   // Send the email
   const mailRes = await sendMail(mailOptions);
-  console.log(mailRes);
   return mailRes;
 }
 

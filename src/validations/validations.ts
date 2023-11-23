@@ -16,7 +16,7 @@ export const validateUpdateTenantInput = (tenant: Tenant): void => {
   if (!tenant.name) {
     throw new HttpBadRequest("Name is required");
   }
-  if (!tenant.tenant_status_id) {
+  if (tenant.hasOwnProperty("tenant_status_id") && !tenant.tenant_status_id) {
     throw new HttpBadRequest("Tenant Status is required");
   }
 };
@@ -106,16 +106,19 @@ export const validateAddHrProfileInput = (req: Request): void => {
   if (!req.body.email_id) {
     throw new HttpBadRequest("Email ID is required");
   }
+  if (!req.body.user_id) {
+    throw new HttpBadRequest("User Id is required");
+  }
 };
 
 export const validateUpdateHrProfileInput = (req: Request): void => {
   if (!req.body.id) {
     throw new HttpBadRequest("Profile Id is required");
   }
-  if (!req.body.user_id) {
+  if (req.body.hasOwnProperty("user_id") && !req.body.user_id) {
     throw new HttpBadRequest("User Id is required");
   }
-  if (!req.body.email_id) {
+  if (req.body.hasOwnProperty("email_id") && !req.body.email_id) {
     throw new HttpBadRequest("Email ID is required");
   }
 };

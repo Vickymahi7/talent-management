@@ -17,7 +17,4 @@ export const AppDataSource = new DataSource({
   entities: [User, Tenant],
   subscribers: [],
   migrations: [],
-  extra: {
-    connectionLimit: 10,
-  },
 });
