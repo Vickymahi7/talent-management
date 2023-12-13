@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import axios from "axios";
-import { HttpStatusCode } from "../enums/enums";
+import { HttpStatusCode, UserTypes } from "../enums/enums";
 import { HttpNotFound, HttpBadRequest } from "../types/errors";
 import HrProfile from "../models/HrProfile";
 import { v4 as uuidv4 } from "uuid";
@@ -207,6 +207,8 @@ export const getHrProfileList = async (
   next: NextFunction
 ) => {
   try {
+    const currentUserId = req.headers.userId?.toString();
+    const currentUserTypeId = req.headers.userTypeId?.toString();
     const { searchText, status_id, rows, start } = req.query;
     let query = "*:*";
     if (searchText) {
@@ -223,6 +225,11 @@ export const getHrProfileList = async (
       rows: rows as string,
       start: start as string,
     };
+
+    // For User Type "User" - Only show Profiles created by them
+    if (parseInt(currentUserTypeId!) == UserTypes.USR)
+      queryParams.fq = `created_by_id:${currentUserId}`;
+
     const { numFound, hrProfileList } = await getHrProfileFromSolr(
       solrCore,
       queryParams

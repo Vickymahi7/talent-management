@@ -24,8 +24,10 @@ export const checkUserAuth = (
           // return res.sendStatus(HttpStatusCode.FORBIDDEN);
         } else {
           const userId = (decodedToken as JwtPayload).user_id;
+          const userTypeId = (decodedToken as JwtPayload).user_type_id;
           const tenantId = (decodedToken as JwtPayload).tenant_id;
           req.headers.userId = userId;
+          req.headers.userTypeId = userTypeId;
           req.headers.tenantId = tenantId;
           next();
         }
