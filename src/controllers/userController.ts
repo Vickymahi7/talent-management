@@ -18,11 +18,15 @@ import {
 } from "../validations/validations";
 import {
   createUser,
+  decodeInviteUserData,
+  encodeInviteUserData,
   generateAccessToken,
   generateActivationUrl,
+  invitedUserRegistration,
   sendUserActivationMail,
 } from "../helperFunctions/userFunctions";
 import Tenant from "../models/Tenant";
+import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
 
 dotenv.config();
 
@@ -165,6 +169,67 @@ export const userAdd = async (
     validateAddUserInput(req.body);
 
     const response = await createUser(req.body);
+
+    res.status(HttpStatusCode.CREATED).json({
+      status: HttpStatusCode.CREATED,
+      message: "User Created Successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/inviteduser/register:
+ *   post:
+ *     summary: Invited User Registration
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_type_id:
+ *                 type: number
+ *               user_name:
+ *                 type: string
+ *               email_id:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               user_status_id:
+ *                 type: number
+ *             required:
+ *               - user_name
+ *               - email_id
+ *               - password
+ *             example:
+ *               user_type_id: 3
+ *               user_name: Demo User
+ *               email_id: demouser@demo.com
+ *               phone: 9876543210
+ *               user_status_id: null
+ *     responses:
+ *       201:
+ *         description: Created.
+ */
+export const registerInvitedUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // const tenantId = req.headers.tenantId?.toString();
+    // req.body.tenant_id = parseInt(tenantId!);
+
+    validateAddUserInput(req.body);
+
+    const response = await invitedUserRegistration(req.body);
 
     res.status(HttpStatusCode.CREATED).json({
       status: HttpStatusCode.CREATED,
@@ -538,6 +603,104 @@ export const userDelete = async (
         });
       } else {
         throw new HttpNotFound("User not found");
+      }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/aduserinvite:
+ *   post:
+ *     summary: Invite AD Users
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               users:
+ *                 type: array
+ *             example:
+ *               users:
+ *                 - displayName: John Doe
+ *                   mail: test@test.com
+ *     responses:
+ *       201:
+ *         description: Created.
+ */
+export const inviteAdUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = req.headers.userId?.toString();
+    const tenantId = req.headers.tenantId?.toString();
+    const { users } = req.body;
+
+    const sendMailResponse = await sendUserInvitationMail(
+      users,
+      tenantId!,
+      currentUserId!
+    );
+
+    console.log(sendMailResponse);
+
+    res.status(HttpStatusCode.OK).json({
+      status: HttpStatusCode.OK,
+      message: "Mail Sent Successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/inviteduser/decode:
+ *   get:
+ *     summary: Decode Invited User Details
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: key
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getInvitedUserDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { key } = req.body;
+    if (!key) {
+      throw new HttpNotFound("Bad Request");
+    } else {
+      // Decode the values like TenantId-InvitedUserId-UserName-UserEamil
+      const decodedValues = decodeInviteUserData(key);
+
+      if (decodedValues.length > 0) {
+        const [tenant_id, created_by_id, user_name, email_id] = decodedValues;
+
+        const userData = { tenant_id, created_by_id, user_name, email_id };
+
+        res.status(HttpStatusCode.OK).json({ user: userData });
+      } else {
+        throw new HttpNotFound("Bad Request");
       }
     }
   } catch (error) {

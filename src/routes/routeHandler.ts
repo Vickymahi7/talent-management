@@ -13,7 +13,7 @@ const router: Router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const { SAD, ADM, HRU } = UserTypes;
+const { SAD, ADM, HRU, USR } = UserTypes;
 
 // Swagger Docs Route
 router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
@@ -22,6 +22,8 @@ router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
 router.post("/login", user.userLogin);
 router.get("/user/activationdetail/:token", user.getUserActivationDetails);
 router.post("/user/activate", user.activateUser);
+router.post("/user/inviteduser/register", user.registerInvitedUser);
+router.post("/user/inviteduser/decode", user.getInvitedUserDetails);
 
 // Protected Routes
 router.use(checkUserAuth);
@@ -43,55 +45,60 @@ router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
 router.patch("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
+router.post("/user/aduserinvite", requireUsers([ADM, HRU]), user.inviteAdUsers);
 
 // HR Profile Routes
 router.get(
   "/hrprofile/list",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   hrProfile.getHrProfileList
 );
 router.post(
   "/hrprofile/photoupload",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   upload.single("file"),
   hrProfile.hrProfilePhotoUpload
 );
 router.post(
   "/hrprofile/resumeupload",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   upload.single("file"),
   hrProfile.hrProfileResumeUpload
 );
 router.delete(
   "/hrprofile/deleteresume/:id",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   hrProfile.deleteHrProfileResume
 );
 router.post(
   "/hrprofile/docupload",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   upload.single("file"),
   hrProfile.hrProfileDocUpload
 );
 router.patch(
   "/hrprofile/deletedoc",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   hrProfile.deleteHrProfileDoc
 );
-router.post("/hrprofile/add", requireUsers([ADM, HRU]), hrProfile.hrProfileAdd);
+router.post(
+  "/hrprofile/add",
+  requireUsers([ADM, HRU, USR]),
+  hrProfile.hrProfileAdd
+);
 router.patch(
   "/hrprofile/update",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   hrProfile.hrProfileUpdate
 );
 router.get(
   "/hrprofile/view/:id",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   hrProfile.hrProfileView
 );
 router.delete(
   "/hrprofile/delete/:id",
-  requireUsers([ADM, HRU]),
+  requireUsers([ADM, HRU, USR]),
   hrProfile.hrProfileDelete
 );
 

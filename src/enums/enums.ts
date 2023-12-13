@@ -25,7 +25,7 @@ export enum AccountStatus {
 
 export enum AccountStatusId {
   ACTIVE = 1,
-  IN_Active = 2,
+  INACTIVE = 2,
   BLOCKED = 3,
   SUSPENDED = 4,
 }

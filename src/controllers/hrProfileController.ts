@@ -18,6 +18,7 @@ import {
   hrProfileSolrUpdate,
 } from "../helperFunctions/hrProfleFunctions";
 import QueryParams from "../types/QueryParams";
+import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -511,7 +512,7 @@ export const hrProfileDocUpload = async (
  *               - doc_id
  *               - path
  *             example:
- *               id: 
+ *               id:
  *               doc_id: 1
  *               path:
  *     responses:

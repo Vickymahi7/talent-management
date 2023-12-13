@@ -10,7 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.449.0",
+    "@azure/msal-node": "^2.6.0",
     "axios": "^1.5.1",
+    "base64-url": "^2.3.3",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
