@@ -209,7 +209,8 @@ export const getHrProfileList = async (
   try {
     const currentUserId = req.headers.userId?.toString();
     const currentUserTypeId = req.headers.userTypeId?.toString();
-    const { searchText, status_id, rows, start } = req.query;
+    const { searchText, status_id, rows, start, sortBy, sortDirection } =
+      req.query;
     let query = "*:*";
     if (searchText) {
       query = `profile_title:"${searchText}" OR email_id:"${searchText}" OR skills:"${searchText}" OR summary:"${searchText}"`;
@@ -224,6 +225,11 @@ export const getHrProfileList = async (
       q: query,
       rows: rows as string,
       start: start as string,
+      // default sorting is by 'created_dt desc'
+      sort:
+        (sortBy?.toString() ?? "created_dt") +
+        " " +
+        (sortDirection?.toString() ?? "desc"),
     };
 
     // For User Type "User" - Only show Profiles created by them
@@ -662,6 +668,7 @@ export const hrProfileAdd = async (
     hrProfile.user_id = currentUserId;
     hrProfile.tenant_id = tenantId;
     hrProfile.created_by_id = currentUserId;
+    hrProfile.created_dt = new Date();
     hrProfile.last_updated_dt = new Date();
 
     await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, [

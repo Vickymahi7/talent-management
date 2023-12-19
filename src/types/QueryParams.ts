@@ -4,4 +4,5 @@ export default interface QueryParams {
   rows?: string;
   start?: string;
   fq?: string;
+  sort?: string;
 }
