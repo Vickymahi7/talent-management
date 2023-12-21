@@ -29,3 +29,9 @@ export enum AccountStatusId {
   BLOCKED = 3,
   SUSPENDED = 4,
 }
+
+export enum ProfileStatus {
+  DRAFT = 1,
+  PREPARED = 2,
+  VERIFIED = 3,
+}

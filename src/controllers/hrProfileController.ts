@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import axios from "axios";
-import { HttpStatusCode, UserTypes } from "../enums/enums";
+import { HttpStatusCode, ProfileStatus, UserTypes } from "../enums/enums";
 import { HttpNotFound, HttpBadRequest } from "../types/errors";
 import HrProfile from "../models/HrProfile";
 import { v4 as uuidv4 } from "uuid";
@@ -58,6 +58,8 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *         office_phone:
  *           type: string
  *         location:
+ *           type: string
+ *         position:
  *           type: string
  *         ctc:
  *           type: string
@@ -593,6 +595,7 @@ export const deleteHrProfileDoc = async (
  *               phone:
  *               office_phone:
  *               location:
+ *               position: Software Developer
  *               ctc:
  *               experience_month: 1
  *               experience_year: 6
@@ -668,6 +671,7 @@ export const hrProfileAdd = async (
     hrProfile.user_id = currentUserId;
     hrProfile.tenant_id = tenantId;
     hrProfile.created_by_id = currentUserId;
+    hrProfile.status_id = ProfileStatus.DRAFT;
     hrProfile.created_dt = new Date();
     hrProfile.last_updated_dt = new Date();
 
@@ -712,6 +716,7 @@ export const hrProfileAdd = async (
  *               phone:
  *               office_phone:
  *               location:
+ *               position: Software Developer
  *               ctc:
  *               experience_month: 1
  *               experience_year: 6
