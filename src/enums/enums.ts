@@ -12,7 +12,7 @@ export enum HttpStatusCode {
 
 export enum UserTypes {
   SAD = 1, // SUPER_ADMIN
-  ADM = 2, // ADMIN
+  ADM = 2, // ADMIN / Power User
   HRU = 3, // HR_USER
   USR = 4, // USER
 }

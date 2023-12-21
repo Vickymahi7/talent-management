@@ -180,12 +180,12 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
 /**
  * @swagger
  * tags:
- *   name: HR Profile
- *   description: APIs for Managing HR Profiles
+ *   name: Profile
+ *   description: APIs for Managing Profiles
  * /hrprofile/list:
  *   get:
  *     summary: List all Profiles
- *     tags: [HR Profile]
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -217,14 +217,19 @@ export const getHrProfileList = async (
     if (searchText) {
       query = `profile_title:"${searchText}" OR email_id:"${searchText}" OR skills:"${searchText}" OR summary:"${searchText}"`;
     }
+    let statusQuery = "";
     if (status_id) {
-      query += ` AND status_id: ${status_id}`;
+      const statusIds = status_id as string[];
+      statusQuery = statusIds
+        .map((element) => `status_id:${element}`)
+        .join(" AND ");
     }
 
     const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
 
     const queryParams: QueryParams = {
       q: query,
+      fq: statusQuery,
       rows: rows as string,
       start: start as string,
       // default sorting is by 'created_dt desc'
@@ -254,7 +259,7 @@ export const getHrProfileList = async (
  * /hrprofile/photoupload:
  *   post:
  *     summary: Upload Profile Picture
- *     tags: [HR Profile]
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -314,8 +319,8 @@ export const hrProfilePhotoUpload = async (
  * @swagger
  * /hrprofile/resumeupload:
  *   post:
- *     summary: Upload HR Profile Resume
- *     tags: [HR Profile]
+ *     summary: Upload Profile Resume
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -375,8 +380,8 @@ export const hrProfileResumeUpload = async (
  * @swagger
  * /hrprofile/deleteresume:
  *   delete:
- *     summary: Delete HR Profile Resume
- *     tags: [HR Profile]
+ *     summary: Delete Profile Resume
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -426,8 +431,8 @@ export const deleteHrProfileResume = async (
  * @swagger
  * /hrprofile/docupload:
  *   post:
- *     summary: Upload HR Profile Documents
- *     tags: [HR Profile]
+ *     summary: Upload Profile Documents
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -505,8 +510,8 @@ export const hrProfileDocUpload = async (
  * @swagger
  * /hrprofile/deletedoc:
  *   patch:
- *     summary: Delete HR Profile Document
- *     tags: [HR Profile]
+ *     summary: Delete Profile Document
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -572,7 +577,7 @@ export const deleteHrProfileDoc = async (
  * /hrprofile/add:
  *   post:
  *     summary: Add New Profile
- *     tags: [HR Profile]
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -693,7 +698,7 @@ export const hrProfileAdd = async (
  * /hrprofile/update:
  *   patch:
  *     summary: Update Profile
- *     tags: [HR Profile]
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -801,7 +806,7 @@ export const hrProfileUpdate = async (
  * /hrprofile/view/{id}:
  *   get:
  *     summary: View Profile
- *     tags: [HR Profile]
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -849,7 +854,7 @@ export const hrProfileView = async (
  * /hrprofile/delete/{id}:
  *   delete:
  *     summary: Delete Profile
- *     tags: [HR Profile]
+ *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     parameters:

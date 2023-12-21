@@ -47,7 +47,7 @@ router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
 router.post("/user/aduserinvite", requireUsers([ADM, HRU]), user.inviteAdUsers);
 
-// HR Profile Routes
+// Profile Routes
 router.get(
   "/hrprofile/list",
   requireUsers([ADM, HRU, USR]),
