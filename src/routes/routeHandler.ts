@@ -1,12 +1,12 @@
 import express, { Router } from "express";
-import swaggerUi from "swagger-ui-express";
 import multer from "multer";
-import swagger from "../utils/swagger";
-import { UserTypes } from "../enums/enums";
-import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
+import swaggerUi from "swagger-ui-express";
+import * as hrProfile from "../controllers/hrProfileController";
 import * as tenant from "../controllers/tenantController";
 import * as user from "../controllers/userController";
-import * as hrProfile from "../controllers/hrProfileController";
+import { UserTypes } from "../enums/enums";
+import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
+import swagger from "../utils/swagger";
 
 const router: Router = express.Router();
 
@@ -46,6 +46,16 @@ router.patch("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
 router.post("/user/aduserinvite", requireUsers([ADM, HRU]), user.inviteAdUsers);
+router.get(
+  "/usermenuprivilege/list/:userId",
+  requireUsers([ADM]),
+  user.getUserMenuPrivileges
+);
+router.post(
+  "/usermenuprivilege/statechange",
+  requireUsers([ADM]),
+  user.userMenuPrivilegeStateChange
+);
 
 // Profile Routes
 router.get(

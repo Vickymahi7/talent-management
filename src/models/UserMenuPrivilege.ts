@@ -7,36 +7,28 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import StandardMenu from "./StandardMenu";
 import User from "./User";
 
 @Entity()
-export default class Tenant {
+export default class UserMenuPrivilege {
   @PrimaryGeneratedColumn()
+  user_menu_privilege_id?: number;
+
+  @Column()
   tenant_id?: number;
 
   @Column()
   user_id?: number;
 
   @Column()
-  name?: string;
+  standard_menu_id?: number;
 
   @Column()
-  tenant_type_id?: number;
-
-  @Column()
-  tenant_status_id?: number;
-
-  @Column()
-  description?: string;
-
-  @Column()
-  location?: string;
+  menu_order?: number;
 
   @Column()
   active?: boolean;
-
-  @Column()
-  created_by_id?: number;
 
   @CreateDateColumn({
     type: "timestamp",
@@ -51,7 +43,14 @@ export default class Tenant {
   })
   last_updated_dt?: Date;
 
-  @OneToOne(() => User, (user) => user.tenant)
+  @OneToOne(() => User, (user) => user.user_menu_privilege)
   @JoinColumn({ name: "user_id" })
   user!: User;
+
+  @OneToOne(
+    () => StandardMenu,
+    (standard_menu) => standard_menu.user_menu_privilege
+  )
+  @JoinColumn({ name: "standard_menu_id" })
+  standard_menu!: StandardMenu;
 }

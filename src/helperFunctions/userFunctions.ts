@@ -1,18 +1,20 @@
-import { v4 as uuidv4 } from "uuid";
-import bcrypt from "bcrypt";
 import base64url from "base64-url";
-import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import dotenv from "dotenv";
-import User from "../models/User";
-import { AppDataSource } from "../data-source";
-import { HttpConflict } from "../types/errors";
+import jwt from "jsonwebtoken";
 import { EntityManager } from "typeorm";
-import { sendMail } from "../utils/nodemailer";
+import { v4 as uuidv4 } from "uuid";
+import { AppDataSource } from "../data-source";
+import { AccountStatusId, UserTypes } from "../enums/enums";
+import StandardMenu from "../models/StandardMenu";
+import User from "../models/User";
+import UserMenuPrivilege from "../models/UserMenuPrivilege";
+import { HttpConflict } from "../types/errors";
 import {
   TM_ACTIVATION_URL,
   TM_INVITE_REGISTRATION_URL,
 } from "../utils/constants";
-import { AccountStatusId, UserTypes } from "../enums/enums";
+import { sendMail } from "../utils/nodemailer";
 dotenv.config();
 const db = AppDataSource.manager;
 
@@ -50,6 +52,8 @@ export const createUser = async (
         last_updated_dt: reqBody.last_updated_dt,
         created_dt: reqBody.created_dt,
       });
+
+      await assignDefaultMenuPrivileges(dbConnection, userResponse);
 
       const activationUrl = generateActivationUrl(token);
 
@@ -95,6 +99,8 @@ export const invitedUserRegistration = async (
         created_dt: reqBody.created_dt,
       });
 
+      await assignDefaultMenuPrivileges(dbConnection, userResponse);
+
       // const activationUrl = generateActivationUrl(token);
 
       // await sendUserActivationMail(
@@ -109,6 +115,29 @@ export const invitedUserRegistration = async (
     throw error;
   }
 };
+
+async function assignDefaultMenuPrivileges(
+  dbConnection: EntityManager,
+  user: User
+) {
+  // Select default Menu based on User Type
+  const standardMenuList = await getStandardMenuByUserType(
+    dbConnection,
+    user.user_type_id!
+  );
+
+  for (const standardMenu of standardMenuList) {
+    const response = await dbConnection.save(UserMenuPrivilege, {
+      tenant_id: user.tenant_id,
+      user_id: user.user_id,
+      standard_menu_id: standardMenu.standard_menu_id,
+      menu_order: standardMenu.menu_order,
+      active: true,
+      last_updated_dt: user.last_updated_dt,
+      created_dt: user.created_dt,
+    });
+  }
+}
 
 export async function sendUserActivationMail(
   emailId: string,
@@ -151,7 +180,31 @@ export function decodeInviteUserData(encodedString: string) {
 
   // remove separator - and return the values array
   const valuesArray = decodedValues.split("-");
-  console.log(valuesArray);
 
   return valuesArray.length == 4 ? valuesArray : [];
+}
+
+async function getStandardMenuByUserType(
+  db: EntityManager,
+  userTypeId: number
+) {
+  let standardMenuList = [] as StandardMenu[];
+  if (userTypeId == UserTypes.SAD) {
+    standardMenuList = await db.find(StandardMenu, {
+      where: { sad: true, active: true },
+    });
+  } else if (userTypeId == UserTypes.ADM) {
+    standardMenuList = await db.find(StandardMenu, {
+      where: { adm: true, active: true },
+    });
+  } else if (userTypeId == UserTypes.HRU) {
+    standardMenuList = await db.find(StandardMenu, {
+      where: { hru: true, active: true },
+    });
+  } else {
+    standardMenuList = await db.find(StandardMenu, {
+      where: { usr: true, active: true },
+    });
+  }
+  return standardMenuList;
 }

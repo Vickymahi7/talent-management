@@ -1,14 +1,14 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  OneToOne,
+  Entity,
   JoinColumn,
-  ManyToOne,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import Tenant from "./Tenant";
+import UserMenuPrivilege from "./UserMenuPrivilege";
 
 @Entity()
 export default class User {
@@ -60,4 +60,11 @@ export default class User {
   @OneToOne(() => Tenant, (tenant) => tenant.user)
   @JoinColumn({ name: "user_id" })
   tenant!: Tenant;
+
+  @OneToOne(
+    () => UserMenuPrivilege,
+    (userMenuPrivilege) => userMenuPrivilege.user
+  )
+  @JoinColumn({ name: "user_id" })
+  user_menu_privilege!: UserMenuPrivilege;
 }

@@ -1,8 +1,8 @@
 import axios from "axios";
 import dotenv from "dotenv";
-import { HttpInternalServerError } from "../types/errors";
-import QueryParams from "../types/QueryParams";
 import HrProfile from "../models/HrProfile";
+import QueryParams from "../types/QueryParams";
+import { HttpInternalServerError } from "../types/errors";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL!;
@@ -65,8 +65,6 @@ export async function hrProfileSolrUpdate(
   for (const prop in updateValues) {
     updatePayload[prop] = { set: hrProfile[prop] };
   }
-
-  console.log(updatePayload);
 
   return await axios.patch(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, {
     add: { doc: updatePayload },

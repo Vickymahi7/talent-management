@@ -3,30 +3,30 @@ import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
 import { Not } from "typeorm";
 import { AppDataSource } from "../data-source";
-import User from "../models/User";
-import {
-  HttpBadRequest,
-  HttpConflict,
-  HttpNotFound,
-  HttpUnauthorized,
-} from "../types/errors";
 import { AccountStatusId, HttpStatusCode } from "../enums/enums";
-import {
-  validateAddUserInput,
-  validateLoginInput,
-  validateUpdateUserInput,
-} from "../validations/validations";
+import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
 import {
   createUser,
   decodeInviteUserData,
-  encodeInviteUserData,
   generateAccessToken,
   generateActivationUrl,
   invitedUserRegistration,
   sendUserActivationMail,
 } from "../helperFunctions/userFunctions";
 import Tenant from "../models/Tenant";
-import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
+import User from "../models/User";
+import UserMenuPrivilege from "../models/UserMenuPrivilege";
+import {
+  HttpBadRequest,
+  HttpConflict,
+  HttpNotFound,
+  HttpUnauthorized,
+} from "../types/errors";
+import {
+  validateAddUserInput,
+  validateLoginInput,
+  validateUpdateUserInput,
+} from "../validations/validations";
 
 dotenv.config();
 
@@ -66,6 +66,8 @@ dotenv.config();
  *               properties:
  *                 accessToken:
  *                   type: string
+ *                 userId:
+ *                   type: number
  *                 userTypeId:
  *                   type: number
  *                 userName:
@@ -105,6 +107,7 @@ export const userLogin = async (
         const accessToken = generateAccessToken(userData);
 
         const responseData = {
+          userId: user.user_id,
           accessToken,
           userTypeId: user.user_type_id,
           userName: user.user_name,
@@ -430,6 +433,32 @@ export const getUserList = async (
   try {
     const tenantId = req.headers.tenantId as string;
     const userList = await AppDataSource.manager.find(User, {
+      // relations: ["user_menu_privilege"],
+      // select: {
+      //   user_id: true,
+      //   tenant_id: true,
+      //   user_type_id: true,
+      //   user_name: true,
+      //   email_id: true,
+      //   phone: true,
+      //   user_status_id: true,
+      //   active: true,
+      //   created_by_id: true,
+      //   last_access: true,
+      //   created_dt: true,
+      //   last_updated_dt: true,
+
+      //   user_menu_privilege: {
+      //     user_menu_privilege_id: true,
+      //     tenant_id: true,
+      //     user_id: true,
+      //     standard_menu_id: true,
+      //     menu_order: true,
+      //     active: true,
+      //     last_updated_dt: true,
+      //     created_dt: true,
+      //   },
+      // },
       where: { tenant_id: parseInt(tenantId) },
     });
     res.status(HttpStatusCode.OK).json({ userList });
@@ -612,7 +641,7 @@ export const userDelete = async (
 
 /**
  * @swagger
- * /hrprofile/aduserinvite:
+ * /user/aduserinvite:
  *   post:
  *     summary: Invite AD Users
  *     tags: [Users]
@@ -702,6 +731,104 @@ export const getInvitedUserDetails = async (
       } else {
         throw new HttpNotFound("Bad Request");
       }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /usermenuprivilege/list:
+ *   get:
+ *     summary: List User Privileges
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: userId
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getUserMenuPrivileges = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tenantId = req.headers.tenantId as string;
+    const userId = req.params.userId as string;
+    const nativeQuery = `SELECT ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, ump.standard_menu_id, 
+        ump.active, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon, stm.menu_order 
+        FROM user_menu_privilege ump 
+        LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
+        WHERE tenant_id = ? AND user_id = ?`;
+
+    let userMenuPrivilegeList = (await AppDataSource.manager.query(
+      nativeQuery,
+      [parseInt(tenantId), parseInt(userId)]
+    )) as UserMenuPrivilege[];
+    res.status(HttpStatusCode.OK).json({ userMenuPrivilegeList });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /usermenuprivilege/statechange:
+ *   get:
+ *     summary: Active / Inactive User Menu
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_menu_privilege_id:
+ *                 type: number
+ *               active:
+ *                 type: number
+ *             example:
+ *               userMenuPrivilege:
+ *                 - user_menu_privilege_id: 1
+ *                 - active: 1
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const userMenuPrivilegeStateChange = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const reqBody = req.body;
+
+    const response = await AppDataSource.manager.update(
+      UserMenuPrivilege,
+      reqBody.user_menu_privilege_id,
+      {
+        active: reqBody.active ? true : false,
+      }
+    );
+
+    if (response.affected && response.affected > 0) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "User Privilege Updated Successfully",
+      });
+    } else {
+      throw new HttpNotFound("User Privilege not found");
     }
   } catch (error) {
     next(error);

@@ -1,8 +1,10 @@
+import dotenv from "dotenv";
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import User from "./models/User";
+import StandardMenu from "./models/StandardMenu";
 import Tenant from "./models/Tenant";
-import dotenv from "dotenv";
+import User from "./models/User";
+import UserMenuPrivilege from "./models/UserMenuPrivilege";
 dotenv.config();
 
 export const AppDataSource = new DataSource({
@@ -14,7 +16,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   synchronize: false,
   logging: true,
-  entities: [User, Tenant],
+  entities: [User, Tenant, UserMenuPrivilege, StandardMenu],
   subscribers: [],
   migrations: [],
 });
