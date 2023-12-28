@@ -1,16 +1,18 @@
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
-import { Not } from "typeorm";
+import { DeleteResult, InsertResult, Not } from "typeorm";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode } from "../enums/enums";
 import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
 import {
   createUser,
   decodeInviteUserData,
+  decodeResetPasswordData,
   generateAccessToken,
   generateActivationUrl,
   invitedUserRegistration,
+  sendPasswordResetMail,
   sendUserActivationMail,
 } from "../helperFunctions/userFunctions";
 import Tenant from "../models/Tenant";
@@ -175,7 +177,7 @@ export const userAdd = async (
 
     res.status(HttpStatusCode.CREATED).json({
       status: HttpStatusCode.CREATED,
-      message: "User Created Successfully",
+      message: "User Created",
     });
   } catch (error) {
     next(error);
@@ -236,7 +238,7 @@ export const registerInvitedUser = async (
 
     res.status(HttpStatusCode.CREATED).json({
       status: HttpStatusCode.CREATED,
-      message: "User Created Successfully",
+      message: "User Created",
     });
   } catch (error) {
     next(error);
@@ -376,7 +378,7 @@ export const resendActivationMail = async (
   next: NextFunction
 ) => {
   try {
-    let userId = req.params.id;
+    const userId = req.params.id;
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
@@ -399,7 +401,7 @@ export const resendActivationMail = async (
           );
           res.status(HttpStatusCode.OK).json({
             status: HttpStatusCode.OK,
-            message: "Activation Mail Sent",
+            message: `Activation Mail has been sent to ${user.email_id}`,
           });
         } else {
           throw new HttpBadRequest("Bad Request");
@@ -433,32 +435,20 @@ export const getUserList = async (
   try {
     const tenantId = req.headers.tenantId as string;
     const userList = await AppDataSource.manager.find(User, {
-      // relations: ["user_menu_privilege"],
-      // select: {
-      //   user_id: true,
-      //   tenant_id: true,
-      //   user_type_id: true,
-      //   user_name: true,
-      //   email_id: true,
-      //   phone: true,
-      //   user_status_id: true,
-      //   active: true,
-      //   created_by_id: true,
-      //   last_access: true,
-      //   created_dt: true,
-      //   last_updated_dt: true,
-
-      //   user_menu_privilege: {
-      //     user_menu_privilege_id: true,
-      //     tenant_id: true,
-      //     user_id: true,
-      //     standard_menu_id: true,
-      //     menu_order: true,
-      //     active: true,
-      //     last_updated_dt: true,
-      //     created_dt: true,
-      //   },
-      // },
+      select: {
+        user_id: true,
+        tenant_id: true,
+        user_type_id: true,
+        user_name: true,
+        email_id: true,
+        phone: true,
+        user_status_id: true,
+        active: true,
+        created_by_id: true,
+        last_access: true,
+        created_dt: true,
+        last_updated_dt: true,
+      },
       where: { tenant_id: parseInt(tenantId) },
     });
     res.status(HttpStatusCode.OK).json({ userList });
@@ -543,7 +533,7 @@ export const userUpdate = async (
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
-          message: "User Updated Successfully",
+          message: "User Updated",
         });
       } else {
         throw new HttpNotFound("User not found");
@@ -578,11 +568,25 @@ export const userView = async (
   next: NextFunction
 ) => {
   try {
-    let userId = req.params.id;
+    const userId = req.params.id;
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
       const user = await AppDataSource.manager.findOne(User, {
+        select: {
+          user_id: true,
+          tenant_id: true,
+          user_type_id: true,
+          user_name: true,
+          email_id: true,
+          phone: true,
+          user_status_id: true,
+          active: true,
+          created_by_id: true,
+          last_access: true,
+          created_dt: true,
+          last_updated_dt: true,
+        },
         where: { user_id: parseInt(userId) },
       });
       if (user) {
@@ -620,7 +624,7 @@ export const userDelete = async (
   next: NextFunction
 ) => {
   try {
-    let userId = req.params.id;
+    const userId = req.params.id;
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
@@ -628,12 +632,157 @@ export const userDelete = async (
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
-          message: "User Deleted Successfully",
+          message: "User Deleted",
         });
       } else {
         throw new HttpNotFound("User not found");
       }
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/updatepassword:
+ *   patch:
+ *     summary: Update User Password
+ *     tags: [User Activation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email_id:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               token:
+ *                 type: string
+ *             required:
+ *               - email_id
+ *               - password
+ *               - token
+ *             example:
+ *               email_id: demouser@demo.com
+ *               password: demo123
+ *               token:
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const updatePassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email_id, password } = req.body;
+
+    const user = await AppDataSource.manager.findOne(User, {
+      where: { email_id: email_id },
+    });
+
+    if (user) {
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(password!, salt);
+
+      const response = await AppDataSource.manager.update(User, user.user_id, {
+        password: hashedPassword,
+      });
+
+      if (response.affected && response.affected > 0) {
+        return res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "Password Updated",
+        });
+      }
+    }
+    throw new HttpNotFound("User not found");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/changepassword:
+ *   patch:
+ *     summary: Change Existing Password
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: number
+ *               password:
+ *                 type: string
+ *               existing_password:
+ *                 type: string
+ *             required:
+ *               - user_id
+ *               - password
+ *               - existing_password
+ *             example:
+ *               user_id: demouser@demo.com
+ *               password: demo123
+ *               existing_password: demo123
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const changeExistingPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { user_id, password, existing_password } = req.body;
+
+    const user = await AppDataSource.manager.findOne(User, {
+      where: { user_id: user_id },
+    });
+
+    if (user) {
+      const isPaswordMatched = await bcrypt.compare(
+        existing_password,
+        user.password!
+      );
+
+      if (isPaswordMatched) {
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(password!, salt);
+
+        const response = await AppDataSource.manager.update(
+          User,
+          user.user_id,
+          {
+            password: hashedPassword,
+          }
+        );
+
+        if (response.affected && response.affected > 0) {
+          return res.status(HttpStatusCode.OK).json({
+            status: HttpStatusCode.OK,
+            message: "Password Updated",
+          });
+        }
+      } else {
+        throw new HttpUnauthorized("Incorrect password. Please Try again");
+      }
+    }
+    throw new HttpNotFound("User not found");
   } catch (error) {
     next(error);
   }
@@ -684,7 +833,7 @@ export const inviteAdUsers = async (
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
-      message: "Mail Sent Successfully",
+      message: "Invitation Mail Sent Successfully",
     });
   } catch (error) {
     next(error);
@@ -739,6 +888,159 @@ export const getInvitedUserDetails = async (
 
 /**
  * @swagger
+ * /user/forgotpassword:
+ *   post:
+ *     summary: Invite AD Users
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               users:
+ *                 type: array
+ *             example:
+ *               users:
+ *                 - displayName: John Doe
+ *                   mail: test@test.com
+ *     responses:
+ *       201:
+ *         description: Created.
+ */
+export const sendForgotPasswordMail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email_id } = req.body;
+
+    const user = await AppDataSource.manager.findOne(User, {
+      where: { email_id: email_id },
+    });
+
+    if (user) {
+      const sendMailResponse = await sendPasswordResetMail(
+        user.tenant_id!,
+        email_id,
+        user.user_name!
+      );
+
+      console.log(sendMailResponse);
+
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: `Password Reset Mail has been sent to ${email_id}`,
+      });
+    } else {
+      throw new HttpUnauthorized("Invalid Credentials");
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/resetpassword/decode:
+ *   get:
+ *     summary: Decode Invited User Details
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: key
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const decodeResetPasswordDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { key } = req.params;
+    if (!key) {
+      throw new HttpNotFound("Bad Request");
+    } else {
+      // Decode the values like TenantId-InvitedUserId-UserName-UserEamil
+      const decodedValues = decodeResetPasswordData(key);
+
+      if (decodedValues.length > 0) {
+        const [tenant_id, email_id] = decodedValues;
+
+        const userData = { email_id };
+
+        res.status(HttpStatusCode.OK).json({ user: userData });
+      } else {
+        throw new HttpNotFound("Bad Request");
+      }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /standardprivilege/list:
+ *   get:
+ *     summary: List Standard User Privileges
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: userId
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getStandardPrivileges = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tenantId = req.headers.tenantId as string;
+    const userId = req.params.userId as string;
+    const nativeQuery = `SELECT stm.standard_menu_id, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon,
+    stm.menu_order,ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, IF(ump.active=1, 1, 0) as active 
+    FROM standard_menu stm 
+    LEFT JOIN user_menu_privilege ump ON ump.standard_menu_id = stm.standard_menu_id AND ump.tenant_id = ? AND ump.user_id = ? 
+    WHERE stm.active=1 AND (stm.adm=1 OR stm.hru=1 OR stm.usr=1)`;
+
+    let standardPrivilegeList = await AppDataSource.manager.query(nativeQuery, [
+      parseInt(tenantId),
+      parseInt(userId),
+    ]);
+
+    standardPrivilegeList = standardPrivilegeList.map((data) => {
+      // convert 1 or 0 from string to Boolean
+      data.active = Boolean(parseInt(data.active));
+      return data;
+    }) as UserMenuPrivilege[];
+
+    res.status(HttpStatusCode.OK).json({ standardPrivilegeList });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
  * /usermenuprivilege/list:
  *   get:
  *     summary: List User Privileges
@@ -767,9 +1069,9 @@ export const getUserMenuPrivileges = async (
         ump.active, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon, stm.menu_order 
         FROM user_menu_privilege ump 
         LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
-        WHERE tenant_id = ? AND user_id = ?`;
+        WHERE ump.tenant_id = ? AND ump.user_id = ? AND ump.active = 1`;
 
-    let userMenuPrivilegeList = (await AppDataSource.manager.query(
+    const userMenuPrivilegeList = (await AppDataSource.manager.query(
       nativeQuery,
       [parseInt(tenantId), parseInt(userId)]
     )) as UserMenuPrivilege[];
@@ -812,23 +1114,53 @@ export const userMenuPrivilegeStateChange = async (
   next: NextFunction
 ) => {
   try {
+    const tenantId = req.headers.tenantId as string;
     const reqBody = req.body;
 
-    const response = await AppDataSource.manager.update(
-      UserMenuPrivilege,
-      reqBody.user_menu_privilege_id,
-      {
-        active: reqBody.active ? true : false,
-      }
-    );
+    const userMenuPrivilegeData = {
+      tenant_id: parseInt(tenantId),
+      user_id: reqBody.user_id,
+      standard_menu_id: reqBody.standard_menu_id,
+      menu_order: reqBody.menu_order,
+      active: reqBody.active,
+      last_updated_dt: reqBody.last_updated_dt,
+      created_dt: reqBody.created_dt,
+    } as UserMenuPrivilege;
 
-    if (response.affected && response.affected > 0) {
-      res.status(HttpStatusCode.OK).json({
-        status: HttpStatusCode.OK,
-        message: "User Privilege Updated Successfully",
+    let response = null as InsertResult | DeleteResult | null;
+
+    if (reqBody.active) {
+      const response = await AppDataSource.manager.insert(UserMenuPrivilege, {
+        tenant_id: parseInt(tenantId),
+        user_id: reqBody.user_id,
+        standard_menu_id: reqBody.standard_menu_id,
+        menu_order: reqBody.menu_order,
+        active: reqBody.active,
+        last_updated_dt: reqBody.last_updated_dt,
+        created_dt: reqBody.created_dt,
       });
+      if (response.raw?.affectedRows && response.raw.affectedRows > 0) {
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "User Privilege Updated",
+        });
+      } else {
+        throw new HttpBadRequest("User Privilege cannot be updated");
+      }
     } else {
-      throw new HttpNotFound("User Privilege not found");
+      const response = await AppDataSource.manager.delete(
+        UserMenuPrivilege,
+        reqBody.user_menu_privilege_id
+      );
+
+      if (response.affected && response.affected > 0) {
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "User Privilege Removed",
+        });
+      } else {
+        throw new HttpNotFound("User Privilege not found");
+      }
     }
   } catch (error) {
     next(error);

@@ -24,6 +24,9 @@ router.get("/user/activationdetail/:token", user.getUserActivationDetails);
 router.post("/user/activate", user.activateUser);
 router.post("/user/inviteduser/register", user.registerInvitedUser);
 router.post("/user/inviteduser/decode", user.getInvitedUserDetails);
+router.post("/user/forgotpassword", user.sendForgotPasswordMail);
+router.get("/user/resetpassword/decode/:key", user.decodeResetPasswordDetails);
+router.post("/user/updatepassword", user.updatePassword);
 
 // Protected Routes
 router.use(checkUserAuth);
@@ -45,12 +48,14 @@ router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
 router.patch("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
+router.post("/user/changepassword", user.changeExistingPassword);
 router.post("/user/aduserinvite", requireUsers([ADM, HRU]), user.inviteAdUsers);
 router.get(
-  "/usermenuprivilege/list/:userId",
+  "/standardprivilege/list/:userId",
   requireUsers([ADM]),
-  user.getUserMenuPrivileges
+  user.getStandardPrivileges
 );
+router.get("/usermenuprivilege/list/:userId", user.getUserMenuPrivileges);
 router.post(
   "/usermenuprivilege/statechange",
   requireUsers([ADM]),

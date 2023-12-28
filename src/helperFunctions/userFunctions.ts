@@ -13,6 +13,7 @@ import { HttpConflict } from "../types/errors";
 import {
   TM_ACTIVATION_URL,
   TM_INVITE_REGISTRATION_URL,
+  TM_RESET_PASSWORD_URL,
 } from "../utils/constants";
 import { sendMail } from "../utils/nodemailer";
 dotenv.config();
@@ -156,6 +157,31 @@ export async function sendUserActivationMail(
   return mailRes;
 }
 
+export async function sendPasswordResetMail(
+  tenantId: number,
+  emailId: string,
+  userName: string
+) {
+  const encodedString = encodeResetPasswordData(tenantId, emailId);
+
+  const generatedUrl = generateResetPasswordUrl(encodedString);
+
+  const mailOptions = {
+    from: process.env.NODE_MAIL_EMAIL_ID,
+    to: emailId,
+    subject: "Password Reset Mail",
+    html: `<p>Hi ${userName},</p>
+    <p>We received a request to reset the password for your account. To reset your password, please click the following link:</p>
+    <p><a href="${generatedUrl}">Reset Password</a></p>
+    <p>If you did not request a password reset, please ignore this email.</p>
+    <p>Sincerely,<br>Talent Management Team</p>`,
+  };
+
+  // Send the email
+  const mailRes = await sendMail(mailOptions);
+  return mailRes;
+}
+
 export function generateActivationUrl(token: string) {
   return process.env.WEB_APP_BASE_URL + TM_ACTIVATION_URL + token;
 }
@@ -174,6 +200,16 @@ export function encodeInviteUserData(userData: any) {
   );
 }
 
+export function generateResetPasswordUrl(encodedString: string) {
+  return process.env.WEB_APP_BASE_URL + TM_RESET_PASSWORD_URL + encodedString;
+}
+
+export function encodeResetPasswordData(tenantId: number, emailId: string) {
+  // Encode values like TenantId-UserEamil
+  // use - as separator
+  return base64url.encode(`${tenantId}-${emailId}`);
+}
+
 export function decodeInviteUserData(encodedString: string) {
   // Decoded values will be like TenantId-InvitedUserId-UserName-UserEamil
   const decodedValues = base64url.decode(encodedString);
@@ -182,6 +218,16 @@ export function decodeInviteUserData(encodedString: string) {
   const valuesArray = decodedValues.split("-");
 
   return valuesArray.length == 4 ? valuesArray : [];
+}
+
+export function decodeResetPasswordData(encodedString: string) {
+  // Decoded values will be like TenantId-UserEamil
+  const decodedValues = base64url.decode(encodedString);
+
+  // remove separator - and return the values array
+  const valuesArray = decodedValues.split("-");
+
+  return valuesArray.length == 2 ? valuesArray : [];
 }
 
 async function getStandardMenuByUserType(

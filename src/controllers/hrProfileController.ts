@@ -308,7 +308,7 @@ export const hrProfilePhotoUpload = async (
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
-      message: "Photo Uploaded Successfully",
+      message: "Photo Uploaded",
     });
   } catch (error) {
     next(error);
@@ -369,7 +369,7 @@ export const hrProfileResumeUpload = async (
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
-      message: "Resume Uploaded Successfully",
+      message: "Resume Uploaded",
     });
   } catch (error) {
     next(error);
@@ -414,7 +414,7 @@ export const deleteHrProfileResume = async (
 
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
-          message: "Resume Deleted Successfully",
+          message: "Resume Deleted",
         });
       } else {
         throw new HttpBadRequest("Error deleting file");
@@ -499,7 +499,7 @@ export const hrProfileDocUpload = async (
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
-      message: "Profile Updated Successfully",
+      message: "Profile Updated",
     });
   } catch (error) {
     next(error);
@@ -559,7 +559,7 @@ export const deleteHrProfileDoc = async (
 
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
-          message: "Resume Deleted Successfully",
+          message: "Resume Deleted",
         });
       } else {
         throw new HttpBadRequest("Error deleting file");
@@ -686,7 +686,7 @@ export const hrProfileAdd = async (
 
     res.status(HttpStatusCode.CREATED).json({
       status: HttpStatusCode.CREATED,
-      message: "Profile Added Successfully",
+      message: "Profile Added",
     });
   } catch (error) {
     next(error);
@@ -794,7 +794,7 @@ export const hrProfileUpdate = async (
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
-      message: "Profile Updated Successfully",
+      message: "Profile Updated",
     });
   } catch (error) {
     next(error);
@@ -887,7 +887,7 @@ export const hrProfileDelete = async (
 
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
-      message: "Profile Deleted Successfully",
+      message: "Profile Deleted",
     });
   } catch (error) {
     next(error);

@@ -109,7 +109,7 @@ export const tenantAdd = async (
       await createSolrCore(response.tenant_id!);
       res.status(HttpStatusCode.CREATED).json({
         status: HttpStatusCode.CREATED,
-        message: "Tenant Created Successfully",
+        message: "Tenant Created",
       });
     });
   } catch (error) {
@@ -235,7 +235,7 @@ export const tenantUpdate = async (
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
-          message: "Tenant Updated Successfully",
+          message: "Tenant Updated",
         });
       }
     } else {
@@ -339,7 +339,7 @@ export const tenantDelete = async (
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
-          message: "Tenant Deleted Successfully",
+          message: "Tenant Deleted",
         });
       } else {
         throw new HttpNotFound("Tenant not found");
