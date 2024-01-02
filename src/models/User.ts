@@ -34,6 +34,9 @@ export default class User {
   phone?: string;
 
   @Column()
+  photo_url?: string;
+
+  @Column()
   access_token?: string;
 
   @Column()

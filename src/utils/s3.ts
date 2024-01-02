@@ -1,9 +1,11 @@
 import {
-  S3Client,
+  DeleteObjectsCommand,
   PutObjectCommand,
   PutObjectCommandInput,
-  DeleteObjectsCommand,
+  S3Client,
 } from "@aws-sdk/client-s3";
+import dotenv from "dotenv";
+dotenv.config();
 
 const bucketName = process.env.AWS_BUCKET_NAME;
 const region = process.env.AWS_BUCKET_REGION;

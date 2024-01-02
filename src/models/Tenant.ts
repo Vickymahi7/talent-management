@@ -33,6 +33,9 @@ export default class Tenant {
   location?: string;
 
   @Column()
+  logo_url?: string;
+
+  @Column()
   active?: boolean;
 
   @Column()

@@ -1,4 +1,4 @@
-import express, { Router } from "express";
+import express, { RequestHandler, Router } from "express";
 import multer from "multer";
 import swaggerUi from "swagger-ui-express";
 import * as hrProfile from "../controllers/hrProfileController";
@@ -7,6 +7,8 @@ import * as user from "../controllers/userController";
 import { UserTypes } from "../enums/enums";
 import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
 import swagger from "../utils/swagger";
+import { ParamsDictionary } from "express-serve-static-core";
+import { ParsedQs } from "qs";
 
 const router: Router = express.Router();
 
@@ -33,9 +35,15 @@ router.use(checkUserAuth);
 // Tenant Routes
 router.post("/tenant/add", requireUsers([SAD]), tenant.tenantAdd);
 router.get("/tenant/list", requireUsers([SAD]), tenant.getTenantList);
-router.patch("/tenant/update", requireUsers([SAD]), tenant.tenantUpdate);
-router.get("/tenant/view/:id", requireUsers([SAD]), tenant.tenantView);
+router.patch("/tenant/update", requireUsers([SAD, ADM]), tenant.tenantUpdate);
+router.get("/tenant/view/:id", requireUsers([SAD, ADM]), tenant.tenantView);
 router.delete("/tenant/delete/:id", requireUsers([SAD]), tenant.tenantDelete);
+router.post(
+  "/tenant/logoupload",
+  requireUsers([ADM, HRU, USR]),
+  upload.single("file"),
+  tenant.tenantLogoUpload
+);
 
 // User Routes
 router.post(
@@ -48,6 +56,12 @@ router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
 router.patch("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
+router.post(
+  "/user/photoupload",
+  requireUsers([SAD, ADM, USR]),
+  upload.single("file"),
+  user.userProfilePhotoUpload
+);
 router.post("/user/changepassword", user.changeExistingPassword);
 router.post("/user/aduserinvite", requireUsers([ADM, HRU]), user.inviteAdUsers);
 router.get(

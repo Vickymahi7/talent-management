@@ -14,6 +14,7 @@ import {
   invitedUserRegistration,
   sendPasswordResetMail,
   sendUserActivationMail,
+  updateUser,
 } from "../helperFunctions/userFunctions";
 import Tenant from "../models/Tenant";
 import User from "../models/User";
@@ -24,13 +25,16 @@ import {
   HttpNotFound,
   HttpUnauthorized,
 } from "../types/errors";
+import { uploadFile } from "../utils/s3";
 import {
   validateAddUserInput,
   validateLoginInput,
+  validatePhotoUpload,
   validateUpdateUserInput,
 } from "../validations/validations";
-
 dotenv.config();
+
+const db = AppDataSource.manager;
 
 /**
  * @swagger
@@ -74,6 +78,10 @@ dotenv.config();
  *                   type: number
  *                 userName:
  *                   type: string
+ *                 tenantLogo:
+ *                   type: string
+ *                 photoUrl:
+ *                   type: string
  */
 export const userLogin = async (
   req: Request,
@@ -84,10 +92,10 @@ export const userLogin = async (
     const { email_id, password } = req.body;
     validateLoginInput(email_id, password);
 
-    const user = await AppDataSource.manager.findOne(User, {
+    const user = await db.findOne(User, {
       where: { email_id: email_id },
     });
-    const tenant = await AppDataSource.manager.findOne(Tenant, {
+    const tenant = await db.findOne(Tenant, {
       where: { tenant_id: user?.tenant_id },
     });
 
@@ -113,6 +121,9 @@ export const userLogin = async (
           accessToken,
           userTypeId: user.user_type_id,
           userName: user.user_name,
+          tenantLogo: tenant.logo_url,
+          photo_url: user.photo_url,
+          isPrimaryUser: user.user_id == tenant.user_id,
         };
         return res.status(HttpStatusCode.OK).json({ ...responseData });
       }
@@ -276,7 +287,7 @@ export const getUserActivationDetails = async (
     if (!token) {
       throw new HttpNotFound("Bad Request");
     } else {
-      const user = await AppDataSource.manager.findOne(User, {
+      const user = await db.findOne(User, {
         select: { user_id: true, email_id: true, active: true },
         where: { activation_token: token },
       });
@@ -334,7 +345,7 @@ export const activateUser = async (
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(user.password!, salt);
 
-    const response = await AppDataSource.manager.update(User, user.user_id, {
+    const response = await db.update(User, user.user_id, {
       password: hashedPassword,
       active: true,
       user_status_id: AccountStatusId.ACTIVE,
@@ -382,7 +393,7 @@ export const resendActivationMail = async (
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
-      const user = await AppDataSource.manager.findOne(User, {
+      const user = await db.findOne(User, {
         select: {
           user_id: true,
           email_id: true,
@@ -434,7 +445,7 @@ export const getUserList = async (
 ) => {
   try {
     const tenantId = req.headers.tenantId as string;
-    const userList = await AppDataSource.manager.find(User, {
+    const userList = await db.find(User, {
       select: {
         user_id: true,
         tenant_id: true,
@@ -442,6 +453,7 @@ export const getUserList = async (
         user_name: true,
         email_id: true,
         phone: true,
+        photo_url: true,
         user_status_id: true,
         active: true,
         created_by_id: true,
@@ -482,6 +494,8 @@ export const getUserList = async (
  *                 type: string
  *               phone:
  *                 type: string
+ *               photo_url:
+ *                 type: string
  *               user_status_id:
  *                 type: string
  *               active:
@@ -511,25 +525,13 @@ export const userUpdate = async (
 
     validateUpdateUserInput(reqBody);
 
-    const isEmailExists = await AppDataSource.manager.findOne(User, {
+    const isEmailExists = await db.findOne(User, {
       where: { email_id: reqBody.email_id, user_id: Not(reqBody.user_id!) },
     });
     if (isEmailExists) {
       throw new HttpConflict("User already exists for this email");
     } else {
-      const response = await AppDataSource.manager.update(
-        User,
-        reqBody.user_id,
-        {
-          user_type_id: reqBody.user_type_id,
-          user_name: reqBody.user_name,
-          email_id: reqBody.email_id,
-          phone: reqBody.phone,
-          user_status_id: reqBody.user_status_id,
-          last_updated_dt: reqBody.last_updated_dt,
-        }
-      );
-
+      const response = await updateUser(db, reqBody);
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
@@ -572,7 +574,7 @@ export const userView = async (
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
-      const user = await AppDataSource.manager.findOne(User, {
+      const user = await db.findOne(User, {
         select: {
           user_id: true,
           tenant_id: true,
@@ -580,6 +582,7 @@ export const userView = async (
           user_name: true,
           email_id: true,
           phone: true,
+          photo_url: true,
           user_status_id: true,
           active: true,
           created_by_id: true,
@@ -628,7 +631,7 @@ export const userDelete = async (
     if (!userId) {
       throw new HttpBadRequest("User Id is required");
     } else {
-      const response = await AppDataSource.manager.delete(User, userId);
+      const response = await db.delete(User, userId);
       if (response.affected && response.affected > 0) {
         res.status(HttpStatusCode.OK).json({
           status: HttpStatusCode.OK,
@@ -684,7 +687,7 @@ export const updatePassword = async (
   try {
     const { email_id, password } = req.body;
 
-    const user = await AppDataSource.manager.findOne(User, {
+    const user = await db.findOne(User, {
       where: { email_id: email_id },
     });
 
@@ -692,7 +695,7 @@ export const updatePassword = async (
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(password!, salt);
 
-      const response = await AppDataSource.manager.update(User, user.user_id, {
+      const response = await db.update(User, user.user_id, {
         password: hashedPassword,
       });
 
@@ -750,7 +753,7 @@ export const changeExistingPassword = async (
   try {
     const { user_id, password, existing_password } = req.body;
 
-    const user = await AppDataSource.manager.findOne(User, {
+    const user = await db.findOne(User, {
       where: { user_id: user_id },
     });
 
@@ -764,13 +767,9 @@ export const changeExistingPassword = async (
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(password!, salt);
 
-        const response = await AppDataSource.manager.update(
-          User,
-          user.user_id,
-          {
-            password: hashedPassword,
-          }
-        );
+        const response = await db.update(User, user.user_id, {
+          password: hashedPassword,
+        });
 
         if (response.affected && response.affected > 0) {
           return res.status(HttpStatusCode.OK).json({
@@ -919,7 +918,7 @@ export const sendForgotPasswordMail = async (
   try {
     const { email_id } = req.body;
 
-    const user = await AppDataSource.manager.findOne(User, {
+    const user = await db.findOne(User, {
       where: { email_id: email_id },
     });
 
@@ -1022,7 +1021,7 @@ export const getStandardPrivileges = async (
     LEFT JOIN user_menu_privilege ump ON ump.standard_menu_id = stm.standard_menu_id AND ump.tenant_id = ? AND ump.user_id = ? 
     WHERE stm.active=1 AND (stm.adm=1 OR stm.hru=1 OR stm.usr=1)`;
 
-    let standardPrivilegeList = await AppDataSource.manager.query(nativeQuery, [
+    let standardPrivilegeList = await db.query(nativeQuery, [
       parseInt(tenantId),
       parseInt(userId),
     ]);
@@ -1071,10 +1070,10 @@ export const getUserMenuPrivileges = async (
         LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
         WHERE ump.tenant_id = ? AND ump.user_id = ? AND ump.active = 1`;
 
-    const userMenuPrivilegeList = (await AppDataSource.manager.query(
-      nativeQuery,
-      [parseInt(tenantId), parseInt(userId)]
-    )) as UserMenuPrivilege[];
+    const userMenuPrivilegeList = (await db.query(nativeQuery, [
+      parseInt(tenantId),
+      parseInt(userId),
+    ])) as UserMenuPrivilege[];
     res.status(HttpStatusCode.OK).json({ userMenuPrivilegeList });
   } catch (error) {
     next(error);
@@ -1130,7 +1129,7 @@ export const userMenuPrivilegeStateChange = async (
     let response = null as InsertResult | DeleteResult | null;
 
     if (reqBody.active) {
-      const response = await AppDataSource.manager.insert(UserMenuPrivilege, {
+      const response = await db.insert(UserMenuPrivilege, {
         tenant_id: parseInt(tenantId),
         user_id: reqBody.user_id,
         standard_menu_id: reqBody.standard_menu_id,
@@ -1148,7 +1147,7 @@ export const userMenuPrivilegeStateChange = async (
         throw new HttpBadRequest("User Privilege cannot be updated");
       }
     } else {
-      const response = await AppDataSource.manager.delete(
+      const response = await db.delete(
         UserMenuPrivilege,
         reqBody.user_menu_privilege_id
       );
@@ -1161,6 +1160,74 @@ export const userMenuPrivilegeStateChange = async (
       } else {
         throw new HttpNotFound("User Privilege not found");
       }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/photoupload:
+ *   post:
+ *     summary: Upload User Profile Photo
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: number
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *             required:
+ *               - id
+ *               - file
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+export const userProfilePhotoUpload = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.body.id;
+    const file = req.file;
+    validatePhotoUpload(req);
+
+    const fileBuffer = file?.buffer;
+    const uploadLocation = process.env.AWS_USER_PROFILE_PIC_PATH + userId;
+    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+
+    const uploadRes = await uploadFile(
+      fileBuffer,
+      uploadLocation,
+      file?.mimetype
+    );
+
+    const userData = {
+      user_id: userId,
+      logo_url: fileUrl,
+    };
+
+    const response = await updateUser(db, userData);
+
+    if (response.affected && response.affected > 0) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "Photo Uploaded",
+      });
+    } else {
+      throw new HttpNotFound("User not found");
     }
   } catch (error) {
     next(error);

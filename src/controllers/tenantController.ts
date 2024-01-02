@@ -1,17 +1,18 @@
 import { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
+import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
+import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
+import { updateTenant } from "../helperFunctions/tenantFunctions";
+import { createUser } from "../helperFunctions/userFunctions";
+import Tenant from "../models/Tenant";
 import { HttpBadRequest, HttpNotFound } from "../types/errors";
-import { HttpStatusCode } from "../enums/enums";
+import { uploadFile } from "../utils/s3";
 import {
-  validateAddUserInput,
   validateAddTenantInput,
+  validateAddUserInput,
+  validatePhotoUpload,
   validateUpdateTenantInput,
 } from "../validations/validations";
-import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
-import { UserTypes, AccountStatusId } from "../enums/enums";
-import { EntityManager } from "typeorm";
-import Tenant from "../models/Tenant";
-import { createUser } from "../helperFunctions/userFunctions";
 
 const db = AppDataSource.manager;
 
@@ -145,12 +146,14 @@ export const getTenantList = async (
         name: true,
         description: true,
         location: true,
+        logo_url: true,
         active: true,
         last_updated_dt: true,
         created_dt: true,
         user: {
           user_id: true,
           user_name: true,
+          user_type_id: true,
           email_id: true,
           active: true,
         },
@@ -189,6 +192,8 @@ export const getTenantList = async (
  *                 type: string
  *               location:
  *                 type: string
+ *               logo_url:
+ *                 type: string
  *               active:
  *                 type: boolean
  *             required:
@@ -201,6 +206,7 @@ export const getTenantList = async (
  *               name: ABC Tech Pvt. Ltd.
  *               description: This is a description
  *               location: Delhi
+ *               logo_url:
  *               active: true
  *     responses:
  *       200:
@@ -214,32 +220,13 @@ export const tenantUpdate = async (
   try {
     validateUpdateTenantInput(req.body);
 
-    const existingTenant = await db.findOne(Tenant, {
-      where: { tenant_id: req.body.tenant_id },
-    });
-    if (existingTenant) {
-      const response = await db.update(Tenant, req.body.tenant_id, {
-        name: req.body.name,
-        user_id: req.body.user_id,
-        tenant_type_id:
-          req.body.tenant_type_id == "" ? undefined : req.body.tenant_type_id,
-        tenant_status_id:
-          req.body.tenant_status_id == ""
-            ? undefined
-            : req.body.tenant_status_id,
-        description: req.body.description,
-        location: req.body.location,
-        active: req.body.active,
-      });
+    const response = await updateTenant(db, req.body);
 
-      if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({
-          status: HttpStatusCode.OK,
-          message: "Tenant Updated",
-        });
-      }
-    } else {
-      throw new HttpNotFound("Tenant Not Found");
+    if (response.affected && response.affected > 0) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "Tenant Updated",
+      });
     }
   } catch (error) {
     next(error);
@@ -270,7 +257,14 @@ export const tenantView = async (
   next: NextFunction
 ) => {
   try {
-    let tenantId = req.params.id;
+    let tenantId = parseInt(req.params.id);
+
+    // if tenantId is 0, fetch current tenant details
+    if (tenantId == 0) {
+      const currentTenantId = req.headers.tenantId?.toString();
+      tenantId = parseInt(currentTenantId!);
+    }
+
     if (!tenantId) {
       throw new HttpBadRequest("Tenant Id is required");
     } else {
@@ -284,17 +278,19 @@ export const tenantView = async (
           name: true,
           description: true,
           location: true,
+          logo_url: true,
           active: true,
           created_dt: true,
           last_updated_dt: true,
           user: {
             user_id: true,
             user_name: true,
+            user_type_id: true,
             email_id: true,
             active: true,
           },
         },
-        where: { tenant_id: parseInt(tenantId) },
+        where: { tenant_id: tenantId },
       });
       if (tenant) {
         res.status(HttpStatusCode.OK).json({ tenant });
@@ -344,6 +340,72 @@ export const tenantDelete = async (
       } else {
         throw new HttpNotFound("Tenant not found");
       }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /tenant/logoupload:
+ *   post:
+ *     summary: Upload Tenant Logo
+ *     tags: [Tenant]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: number
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *             required:
+ *               - id
+ *               - file
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+export const tenantLogoUpload = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tenantId = req.body.id;
+    const file = req.file;
+    validatePhotoUpload(req);
+
+    const fileBuffer = file?.buffer;
+    const uploadLocation = process.env.AWS_TENANT_LOGO_PATH + tenantId;
+    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+
+    const uploadRes = await uploadFile(
+      fileBuffer,
+      uploadLocation,
+      file?.mimetype
+    );
+
+    const tenantData = {
+      tenant_id: tenantId,
+      logo_url: fileUrl,
+    };
+
+    const response = await updateTenant(db, tenantData);
+
+    if (response.affected && response.affected > 0) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "Photo Uploaded",
+      });
     }
   } catch (error) {
     next(error);
