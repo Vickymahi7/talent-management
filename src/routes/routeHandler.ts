@@ -1,4 +1,4 @@
-import express, { RequestHandler, Router } from "express";
+import express, { Router } from "express";
 import multer from "multer";
 import swaggerUi from "swagger-ui-express";
 import * as hrProfile from "../controllers/hrProfileController";
@@ -7,8 +7,6 @@ import * as user from "../controllers/userController";
 import { UserTypes } from "../enums/enums";
 import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
 import swagger from "../utils/swagger";
-import { ParamsDictionary } from "express-serve-static-core";
-import { ParsedQs } from "qs";
 
 const router: Router = express.Router();
 
@@ -36,8 +34,13 @@ router.use(checkUserAuth);
 router.post("/tenant/add", requireUsers([SAD]), tenant.tenantAdd);
 router.get("/tenant/list", requireUsers([SAD]), tenant.getTenantList);
 router.patch("/tenant/update", requireUsers([SAD, ADM]), tenant.tenantUpdate);
-router.get("/tenant/view/:id", requireUsers([SAD, ADM]), tenant.tenantView);
+router.get("/tenant/view/:id", requireUsers([SAD]), tenant.tenantView);
 router.delete("/tenant/delete/:id", requireUsers([SAD]), tenant.tenantDelete);
+router.get(
+  "/tenantsetting/view",
+  requireUsers([SAD, ADM]),
+  tenant.getTenantSettings
+);
 router.post(
   "/tenant/logoupload",
   requireUsers([ADM, HRU, USR]),
@@ -53,8 +56,8 @@ router.post(
 );
 router.post("/user/add", requireUsers([SAD, ADM]), user.userAdd);
 router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
-router.patch("/user/update", requireUsers([SAD, ADM]), user.userUpdate);
-router.get("/user/view/:id", requireUsers([SAD, ADM]), user.userView);
+router.patch("/user/update", requireUsers([SAD, ADM, USR]), user.userUpdate);
+router.get("/user/view/:id", requireUsers([SAD, ADM, USR]), user.userView);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
 router.post(
   "/user/photoupload",
@@ -69,7 +72,7 @@ router.get(
   requireUsers([ADM]),
   user.getStandardPrivileges
 );
-router.get("/usermenuprivilege/list/:userId", user.getUserMenuPrivileges);
+router.get("/usermenuprivilege/list", user.getUserMenuPrivileges);
 router.post(
   "/usermenuprivilege/statechange",
   requireUsers([ADM]),

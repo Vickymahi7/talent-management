@@ -36,6 +36,10 @@ const db = AppDataSource.manager;
  *             properties:
  *               name:
  *                 type: string
+ *               tenant_email_id:
+ *                 type: string
+ *               tenant_phone:
+ *                 type: string
  *               tenant_type_id:
  *                 type: number
  *               tenant_status_id:
@@ -56,6 +60,8 @@ const db = AppDataSource.manager;
  *               - email_id
  *             example:
  *               name: ABC Tech Pvt. Ltd.
+ *               tenant_email_id: tenant@tenant.com
+ *               tenant_phone: 9874561230
  *               tenant_type_id: 1
  *               tenant_status_id: 1
  *               description: This is a description
@@ -83,12 +89,16 @@ export const tenantAdd = async (
       // Create Tenant
       const response = await transactionalEntityManager.save(Tenant, {
         name: req.body.name,
+        tenant_email_id: req.body.tenant_email_id,
+        tenant_phone: req.body.tenant_phone,
         tenant_type_id:
           req.body.tenant_type_id == "" ? undefined : req.body.tenant_type_id,
         tenant_status_id: AccountStatusId.ACTIVE,
         description: req.body.description,
         location: req.body.location,
         active: true,
+        is_official_contact_info: req.body.is_official_contact_info,
+        is_skill_experience: req.body.is_skill_experience,
         created_by_id: currentUserId == "" ? undefined : currentUserId,
       });
 
@@ -144,10 +154,14 @@ export const getTenantList = async (
         tenant_type_id: true,
         tenant_status_id: true,
         name: true,
+        tenant_email_id: true,
+        tenant_phone: true,
         description: true,
         location: true,
         logo_url: true,
         active: true,
+        is_official_contact_info: true,
+        is_skill_experience: true,
         last_updated_dt: true,
         created_dt: true,
         user: {
@@ -155,6 +169,7 @@ export const getTenantList = async (
           user_name: true,
           user_type_id: true,
           email_id: true,
+          phone: true,
           active: true,
         },
       },
@@ -188,6 +203,10 @@ export const getTenantList = async (
  *                 type: number
  *               name:
  *                 type: string
+ *               tenant_email_id:
+ *                 type: string
+ *               tenant_phone:
+ *                 type: string
  *               description:
  *                 type: string
  *               location:
@@ -195,6 +214,10 @@ export const getTenantList = async (
  *               logo_url:
  *                 type: string
  *               active:
+ *                 type: booleans
+ *               is_official_contact_info:
+ *                 type: boolean
+ *               is_skill_experience:
  *                 type: boolean
  *             required:
  *               - tenant_id
@@ -204,6 +227,8 @@ export const getTenantList = async (
  *               tenant_type_id: 1
  *               tenant_status_id: 1
  *               name: ABC Tech Pvt. Ltd.
+ *               tenant_email_id: tenant@tenant.com
+ *               tenant_phone: 9874561230
  *               description: This is a description
  *               location: Delhi
  *               logo_url:
@@ -257,13 +282,7 @@ export const tenantView = async (
   next: NextFunction
 ) => {
   try {
-    let tenantId = parseInt(req.params.id);
-
-    // if tenantId is 0, fetch current tenant details
-    if (tenantId == 0) {
-      const currentTenantId = req.headers.tenantId?.toString();
-      tenantId = parseInt(currentTenantId!);
-    }
+    const tenantId = parseInt(req.params.id);
 
     if (!tenantId) {
       throw new HttpBadRequest("Tenant Id is required");
@@ -276,17 +295,22 @@ export const tenantView = async (
           tenant_type_id: true,
           tenant_status_id: true,
           name: true,
+          tenant_email_id: true,
+          tenant_phone: true,
           description: true,
           location: true,
           logo_url: true,
           active: true,
-          created_dt: true,
+          is_official_contact_info: true,
+          is_skill_experience: true,
           last_updated_dt: true,
+          created_dt: true,
           user: {
             user_id: true,
             user_name: true,
             user_type_id: true,
             email_id: true,
+            phone: true,
             active: true,
           },
         },
@@ -340,6 +364,70 @@ export const tenantDelete = async (
       } else {
         throw new HttpNotFound("Tenant not found");
       }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /tenantsetting/view:
+ *   get:
+ *     summary: Get Tenant Settings
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getTenantSettings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentTenantId = req.headers.tenantId?.toString();
+
+    if (currentTenantId) {
+      let tenantId = parseInt(currentTenantId);
+
+      const tenant = await db.findOne(Tenant, {
+        relations: ["user"],
+        select: {
+          tenant_id: true,
+          name: true,
+          tenant_email_id: true,
+          tenant_phone: true,
+          description: true,
+          location: true,
+          logo_url: true,
+          is_official_contact_info: true,
+          is_skill_experience: true,
+          user: {
+            user_id: true,
+            user_name: true,
+            user_type_id: true,
+            email_id: true,
+            phone: true,
+          },
+        },
+        where: { tenant_id: tenantId },
+      });
+      if (tenant) {
+        res.status(HttpStatusCode.OK).json({ tenant });
+      } else {
+        throw new HttpNotFound("Tenant not found");
+      }
+    } else {
+      throw new HttpBadRequest("Bad Request");
     }
   } catch (error) {
     next(error);

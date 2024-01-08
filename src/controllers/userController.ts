@@ -1046,12 +1046,6 @@ export const getStandardPrivileges = async (
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *     - name: userId
- *       in: path
- *       required: true
- *       schema:
- *         type: string
  *     responses:
  *       200:
  *         description: OK.
@@ -1063,7 +1057,7 @@ export const getUserMenuPrivileges = async (
 ) => {
   try {
     const tenantId = req.headers.tenantId as string;
-    const userId = req.params.userId as string;
+    const userId = req.headers.userId as string;
     const nativeQuery = `SELECT ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, ump.standard_menu_id, 
         ump.active, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon, stm.menu_order 
         FROM user_menu_privilege ump 
@@ -1216,7 +1210,7 @@ export const userProfilePhotoUpload = async (
 
     const userData = {
       user_id: userId,
-      logo_url: fileUrl,
+      photo_url: fileUrl,
     };
 
     const response = await updateUser(db, userData);

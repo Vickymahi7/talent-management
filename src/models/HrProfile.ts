@@ -94,7 +94,7 @@ export default class HrProfile {
     this.created_by_id = data.created_by_id;
     this.created_dt = data.created_dt;
     this.last_updated_dt = data.last_updated_dt;
-    this.skills = data.skills;
+    this.skills = data.skills?.map((data) => JSON.stringify(data));
     this.work_experience = data.work_experience?.map((data) =>
       JSON.stringify(data)
     );

@@ -1,24 +1,23 @@
-import { NextFunction, Request, Response } from "express";
 import axios from "axios";
-import { HttpStatusCode, ProfileStatus, UserTypes } from "../enums/enums";
-import { HttpNotFound, HttpBadRequest } from "../types/errors";
-import HrProfile from "../models/HrProfile";
-import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
-import {
-  validatePhotoUpload,
-  validateAddHrProfileInput,
-  validateUpdateHrProfileInput,
-  validateResumeUpload,
-  validateDocUpload,
-} from "../validations/validations";
-import { deleteFile, uploadFile } from "../utils/s3";
+import { NextFunction, Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
+import { HttpStatusCode, ProfileStatus, UserTypes } from "../enums/enums";
 import {
   getHrProfileFromSolr,
   hrProfileSolrUpdate,
 } from "../helperFunctions/hrProfleFunctions";
+import HrProfile from "../models/HrProfile";
 import QueryParams from "../types/QueryParams";
-import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
+import { HttpBadRequest, HttpNotFound } from "../types/errors";
+import { deleteFile, uploadFile } from "../utils/s3";
+import {
+  validateAddHrProfileInput,
+  validateDocUpload,
+  validatePhotoUpload,
+  validateResumeUpload,
+  validateUpdateHrProfileInput,
+} from "../validations/validations";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -120,7 +119,11 @@ const SOLR_CORE_PREFIX = process.env.SOLR_CORE_PREFIX;
  *         skills:
  *           type: array
  *           items:
- *             type: string
+ *             type: object
+ *             properties:
+ *               skill: string
+ *               experience_month: number
+ *               experience_year: number
  *         work_experience:
  *           type: object
  *           properties:
@@ -627,8 +630,9 @@ export const deleteHrProfileDoc = async (
  *               user_id: 1
  *               active: true
  *               skills:
- *                 - Java
- *                 - Javascript
+ *                 - skill: Java
+ *                   experience_month: 4
+ *                   experience_year: 2014
  *               work_experience:
  *                 - company: Test IT
  *                   position: Software Developer
@@ -751,8 +755,9 @@ export const hrProfileAdd = async (
  *               created_dt: null
  *               last_updated_dt: null
  *               skills:
- *                 - Java
- *                 - Javascript
+ *                 - skill: Java
+ *                   experience_month: 4
+ *                   experience_year: 2014
  *               work_experience:
  *                 - company: Test IT
  *                   location: Chennai
@@ -826,11 +831,12 @@ export const hrProfileView = async (
 ) => {
   try {
     const id = req.params.id;
+    const tenantId = parseInt(req.headers.tenantId!.toString());
     if (!id) {
       throw new HttpBadRequest("Id is required");
     }
     const query = `id:${id}`;
-    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+    const solrCore = SOLR_CORE_PREFIX! + tenantId;
 
     const queryParams: QueryParams = {
       q: query,

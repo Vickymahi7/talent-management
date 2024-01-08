@@ -21,6 +21,12 @@ export default class Tenant {
   name?: string;
 
   @Column()
+  tenant_phone?: string;
+
+  @Column()
+  tenant_email_id?: string;
+
+  @Column()
   tenant_type_id?: number;
 
   @Column()
@@ -34,6 +40,12 @@ export default class Tenant {
 
   @Column()
   logo_url?: string;
+
+  @Column()
+  is_official_contact_info?: boolean;
+
+  @Column()
+  is_skill_experience?: boolean;
 
   @Column()
   active?: boolean;

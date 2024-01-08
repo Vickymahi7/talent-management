@@ -34,6 +34,7 @@ export const getHrProfileFromSolr = async (
 
     const hrProfileList = response.data.response.docs.map((data: any) => ({
       ...data,
+      skills: data.skills?.map((item) => JSON.parse(item)),
       work_experience: data.work_experience?.map((item) => JSON.parse(item)),
       project: data.project?.map((item) => JSON.parse(item)),
       education: data.education?.map((item) => JSON.parse(item)),
@@ -51,8 +52,9 @@ export async function hrProfileSolrUpdate(
   reqData: any
 ): Promise<any> {
   const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
-  // id should be sent separately
-  // _version_ should not be sent while updating
+  /* exptract id & _version_ from req because
+    id should be sent separately
+    _version_ should not be sent while updating */
   const { id, _version_, ...updateValues } = reqData;
 
   updateValues.last_updated_dt = new Date();
