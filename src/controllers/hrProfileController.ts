@@ -253,6 +253,7 @@ export const getHrProfileList = async (
 
     res.status(HttpStatusCode.OK).json({ start, total, hrProfileList });
   } catch (error) {
+    console.error(error);
     next(error);
   }
 };
