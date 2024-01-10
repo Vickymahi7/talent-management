@@ -41,7 +41,7 @@ export const getHrProfileFromSolr = async (
       docs: data.docs?.map((item) => JSON.parse(item)),
     }));
 
-    return { hrProfileList, numFound };
+    return { hrProfileList, total: numFound };
   } catch (error) {
     throw new HttpInternalServerError(`Something went wrong!`);
   }

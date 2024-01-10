@@ -462,6 +462,7 @@ export const getUserList = async (
         last_updated_dt: true,
       },
       where: { tenant_id: parseInt(tenantId) },
+      order: { user_id: "ASC" },
     });
     res.status(HttpStatusCode.OK).json({ userList });
   } catch (error) {

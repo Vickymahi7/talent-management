@@ -246,12 +246,12 @@ export const getHrProfileList = async (
     if (parseInt(currentUserTypeId!) == UserTypes.USR)
       queryParams.fq = `created_by_id:${currentUserId}`;
 
-    const { numFound, hrProfileList } = await getHrProfileFromSolr(
+    const { total, hrProfileList } = await getHrProfileFromSolr(
       solrCore,
       queryParams
     );
 
-    res.status(HttpStatusCode.OK).json({ start, numFound, hrProfileList });
+    res.status(HttpStatusCode.OK).json({ start, total, hrProfileList });
   } catch (error) {
     next(error);
   }
