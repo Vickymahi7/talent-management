@@ -648,6 +648,50 @@ export const userDelete = async (
 
 /**
  * @swagger
+ * /user/userprofile:
+ *   get:
+ *     summary: Get User Profile Details for currently Logged In user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getUserProfileDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = req.headers.userId?.toString();
+    if (!currentUserId) {
+      throw new HttpBadRequest("Bad Request");
+    } else {
+      const user = await db.findOne(User, {
+        select: {
+          user_id: true,
+          user_type_id: true,
+          user_name: true,
+          email_id: true,
+          phone: true,
+          photo_url: true,
+        },
+        where: { user_id: parseInt(currentUserId) },
+      });
+      if (user) {
+        res.status(HttpStatusCode.OK).json({ user });
+      } else {
+        throw new HttpNotFound("User not found");
+      }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
  * /user/updatepassword:
  *   patch:
  *     summary: Update User Password

@@ -38,7 +38,7 @@ router.get("/tenant/view/:id", requireUsers([SAD]), tenant.tenantView);
 router.delete("/tenant/delete/:id", requireUsers([SAD]), tenant.tenantDelete);
 router.get(
   "/tenantsetting/view",
-  requireUsers([SAD, ADM]),
+  requireUsers([SAD, ADM, USR]),
   tenant.getTenantSettings
 );
 router.post(
@@ -58,6 +58,11 @@ router.post("/user/add", requireUsers([SAD, ADM]), user.userAdd);
 router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
 router.patch("/user/update", requireUsers([SAD, ADM, USR]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM, USR]), user.userView);
+router.get(
+  "/user/userprofile",
+  requireUsers([SAD, ADM, USR]),
+  user.getUserProfileDetails
+);
 router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
 router.post(
   "/user/photoupload",
