@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { MoreThan } from "typeorm";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
+import { getPaginationData } from "../helperFunctions/commonFunctions";
 import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
 import { updateTenant } from "../helperFunctions/tenantFunctions";
 import { createUser } from "../helperFunctions/userFunctions";
@@ -146,7 +147,7 @@ export const getTenantList = async (
   res: Response,
   next: NextFunction
 ) => {
-  let { lastRecordKey, perPage } = getPaginationData(req.params);
+  let { lastRecordKey, perPage } = getPaginationData(req.query);
 
   try {
     const tenantList = await db.find(Tenant, {
@@ -176,13 +177,17 @@ export const getTenantList = async (
           active: true,
         },
       },
-      where: { tenant_id: MoreThan(lastRecordKey) },
+      where: { tenant_id: MoreThan(lastRecordKey!) },
       order: { tenant_id: "ASC" },
+      take: perPage,
     });
 
-    lastRecordKey = tenantList.length > 0 ? tenantList[0].tenant_id! : 0;
+    lastRecordKey =
+      tenantList.length > 0
+        ? tenantList[tenantList.length - 1].tenant_id!
+        : null;
 
-    res.status(HttpStatusCode.OK).json({ tenantList });
+    res.status(HttpStatusCode.OK).json({ lastRecordKey, tenantList });
   } catch (error) {
     next(error);
   }
@@ -507,11 +512,3 @@ export const tenantLogoUpload = async (
     next(error);
   }
 };
-function getPaginationData(params: any) {
-  const lastRecordKey = params.lastRecordKey
-    ? parseInt(params.lastRecordKey.toString())
-    : 0;
-  const perPage = params.perPage ? parseInt(params.perPage.toString()) : 100;
-
-  return { lastRecordKey, perPage };
-}

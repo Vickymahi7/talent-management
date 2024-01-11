@@ -1,9 +1,10 @@
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
-import { DeleteResult, InsertResult, Not } from "typeorm";
+import { DeleteResult, InsertResult, MoreThan, Not } from "typeorm";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode } from "../enums/enums";
+import { getPaginationData } from "../helperFunctions/commonFunctions";
 import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
 import {
   createUser,
@@ -444,6 +445,7 @@ export const getUserList = async (
   next: NextFunction
 ) => {
   try {
+    let { lastRecordKey, perPage } = getPaginationData(req.query);
     const tenantId = req.headers.tenantId as string;
     const userList = await db.find(User, {
       select: {
@@ -461,10 +463,18 @@ export const getUserList = async (
         created_dt: true,
         last_updated_dt: true,
       },
-      where: { tenant_id: parseInt(tenantId) },
+      where: {
+        user_id: MoreThan(lastRecordKey!),
+        tenant_id: parseInt(tenantId),
+      },
       order: { user_id: "ASC" },
+      take: perPage,
     });
-    res.status(HttpStatusCode.OK).json({ userList });
+
+    lastRecordKey =
+      userList.length > 0 ? userList[userList.length - 1].user_id! : null;
+
+    res.status(HttpStatusCode.OK).json({ lastRecordKey, userList });
   } catch (error) {
     next(error);
   }
