@@ -26,7 +26,7 @@ export async function sendUserInvitationMail(
       from: process.env.NODE_MAIL_EMAIL_ID,
       to: user.mail,
       subject: "User Invitation Mail",
-      html: `<p>Hi ${user.displayName},</p><p>Welcome to Talent Management.<br>Please click on <a href="${generatedUrl}">this link</a> to register your account</p><p>Sincerely,<br>Talent Management Team</p>`,
+      html: `<p>Hi ${user.displayName},</p><p>Welcome to Talent Management.<br>Please click on <a href="${generatedUrl}">this link</a> to register your account</p><p>Regards,<br>Talent Management Team</p>`,
     };
 
     // Return a promise for sending the email

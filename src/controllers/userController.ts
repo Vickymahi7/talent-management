@@ -185,7 +185,7 @@ export const userAdd = async (
 
     validateAddUserInput(req.body);
 
-    const response = await createUser(req.body);
+    const response = await createUser(req.body, res);
 
     res.status(HttpStatusCode.CREATED).json({
       status: HttpStatusCode.CREATED,
@@ -1217,6 +1217,52 @@ export const userMenuPrivilegeStateChange = async (
         throw new HttpNotFound("User Privilege not found");
       }
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /usermenuprivilege/routecheck:
+ *   get:
+ *     summary: List User Privileges
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: routeName
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const canUserAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const routeName = req.query.routeName as string;
+    const tenantId = req.headers.tenantId as string;
+    const userId = req.headers.userId as string;
+    console.log(routeName);
+    const nativeQuery = `SELECT EXISTS (SELECT ump.user_menu_privilege_id 
+        FROM user_menu_privilege ump 
+        LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
+        WHERE ump.tenant_id = ? AND ump.user_id = ? AND ump.active = 1 AND stm.web_url = ?) as result`;
+
+    const [{ result }] = await db.query(nativeQuery, [
+      parseInt(tenantId),
+      parseInt(userId),
+      routeName,
+    ]);
+    res
+      .status(HttpStatusCode.OK)
+      .json({ result: result === "1" ? true : false });
   } catch (error) {
     next(error);
   }

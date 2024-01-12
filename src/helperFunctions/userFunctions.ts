@@ -1,3 +1,4 @@
+import { HttpStatusCode } from "axios";
 import base64url from "base64-url";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
@@ -26,6 +27,7 @@ export const generateAccessToken = (userData: any) => {
 
 export const createUser = async (
   reqBody: any,
+  res: any,
   dbConnection?: EntityManager
 ): Promise<any> => {
   try {
@@ -34,7 +36,13 @@ export const createUser = async (
       where: { email_id: reqBody.email_id },
     });
     if (existingUser) {
-      throw new HttpConflict("User already exists for this email");
+      // throw new HttpConflict("User already exists for this email");
+      return res
+        .status(HttpStatusCode.Ok)
+        .json({
+          status: HttpStatusCode.Conflict,
+          message: "User already exists for this email",
+        });
     } else {
       const token = uuidv4();
 
@@ -118,7 +126,7 @@ export const invitedUserRegistration = async (
 };
 
 export const updateUser = async (db: any, userData: any) => {
-  console.log(userData)
+  console.log(userData);
   const response = await db.update(User, userData.user_id, {
     user_type_id: userData.user_type_id,
     user_name: userData.user_name,
@@ -163,7 +171,7 @@ export async function sendUserActivationMail(
     from: process.env.NODE_MAIL_EMAIL_ID,
     to: emailId,
     subject: "User Activation Mail",
-    html: `<p>Hi ${userName},</p><p>Welcome to Talent Management.<br>Please click on <a href="${activationUrl}">this link</a> to activate your account</p><p>Sincerely,<br>Talent Management Team</p>`,
+    html: `<p>Hi ${userName},</p><p>Welcome to Talent Management.<br>Please click on <a href="${activationUrl}">this link</a> to activate your account</p><p>Regards,<br>Talent Management Team</p>`,
   };
 
   // Send the email
@@ -188,7 +196,7 @@ export async function sendPasswordResetMail(
     <p>We received a request to reset the password for your account. To reset your password, please click the following link:</p>
     <p><a href="${generatedUrl}">Reset Password</a></p>
     <p>If you did not request a password reset, please ignore this email.</p>
-    <p>Sincerely,<br>Talent Management Team</p>`,
+    <p>Regards,<br>Talent Management Team</p>`,
   };
 
   // Send the email

@@ -91,6 +91,11 @@ router.post(
   requireUsers([SAD, ADM, USR]),
   user.userMenuPrivilegeStateChange
 );
+router.get(
+  "/usermenuprivilege/routecheck",
+  requireUsers([SAD, ADM, USR]),
+  user.canUserAccess
+);
 
 // Profile Routes
 router.get(

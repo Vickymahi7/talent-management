@@ -91,8 +91,8 @@ export const tenantAdd = async (
       // Create Tenant
       const response = await transactionalEntityManager.save(Tenant, {
         name: req.body.name,
-        tenant_email_id: req.body.tenant_email_id,
-        tenant_phone: req.body.tenant_phone,
+        tenant_email_id: req.body.email_id,
+        tenant_phone: req.body.phone,
         tenant_type_id:
           req.body.tenant_type_id == "" ? undefined : req.body.tenant_type_id,
         tenant_status_id: AccountStatusId.ACTIVE,
@@ -110,6 +110,7 @@ export const tenantAdd = async (
       // Create Primary User
       const userResponse = await createUser(
         req.body,
+        res,
         transactionalEntityManager
       );
 

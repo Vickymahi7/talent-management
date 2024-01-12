@@ -1,11 +1,11 @@
 import { Request } from "express";
-import { HttpBadRequest } from "../types/errors";
 import Tenant from "../models/Tenant";
 import User from "../models/User";
+import { HttpBadRequest } from "../types/errors";
 
 export const validateAddTenantInput = (tenant: Tenant): void => {
   if (!tenant.name) {
-    throw new HttpBadRequest("Name is required");
+    throw new HttpBadRequest("Tenant Name is required");
   }
 };
 
