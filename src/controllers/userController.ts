@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
 import { DeleteResult, InsertResult, MoreThan, Not } from "typeorm";
 import { AppDataSource } from "../data-source";
-import { AccountStatusId, HttpStatusCode } from "../enums/enums";
+import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
 import { getPaginationData } from "../helperFunctions/commonFunctions";
 import { sendUserInvitationMail } from "../helperFunctions/mailHelperFunctions";
 import {
@@ -1069,12 +1069,19 @@ export const getStandardPrivileges = async (
 ) => {
   try {
     const tenantId = req.headers.tenantId as string;
+    const userTypeId = req.headers.userTypeId as string;
     const userId = req.params.userId as string;
+
+    let superAdminCondition = "";
+    if (parseInt(userTypeId) == UserTypes.SAD) {
+      superAdminCondition = "stm.sad=1 OR";
+    }
+
     const nativeQuery = `SELECT stm.standard_menu_id, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon,
     stm.menu_order,ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, IF(ump.active=1, 1, 0) as active 
     FROM standard_menu stm 
     LEFT JOIN user_menu_privilege ump ON ump.standard_menu_id = stm.standard_menu_id AND ump.tenant_id = ? AND ump.user_id = ? 
-    WHERE stm.active=1 AND (stm.adm=1 OR stm.hru=1 OR stm.usr=1)`;
+    WHERE stm.active=1 AND (${superAdminCondition} stm.adm=1 OR stm.hru=1 OR stm.usr=1)`;
 
     let standardPrivilegeList = await db.query(nativeQuery, [
       parseInt(tenantId),

@@ -43,7 +43,7 @@ router.get(
 );
 router.post(
   "/tenant/logoupload",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   upload.single("file"),
   tenant.tenantLogoUpload
 );
@@ -51,11 +51,11 @@ router.post(
 // User Routes
 router.post(
   "/user/resendactivation/:id",
-  requireUsers([SAD, ADM]),
+  requireUsers([SAD, ADM, USR]),
   user.resendActivationMail
 );
-router.post("/user/add", requireUsers([SAD, ADM]), user.userAdd);
-router.get("/user/list", requireUsers([SAD, ADM]), user.getUserList);
+router.post("/user/add", requireUsers([SAD, ADM, USR]), user.userAdd);
+router.get("/user/list", requireUsers([SAD, ADM, USR]), user.getUserList);
 router.patch("/user/update", requireUsers([SAD, ADM, USR]), user.userUpdate);
 router.get("/user/view/:id", requireUsers([SAD, ADM, USR]), user.userView);
 router.get(
@@ -63,7 +63,11 @@ router.get(
   requireUsers([SAD, ADM, USR]),
   user.getUserProfileDetails
 );
-router.delete("/user/delete/:id", requireUsers([SAD, ADM]), user.userDelete);
+router.delete(
+  "/user/delete/:id",
+  requireUsers([SAD, ADM, USR]),
+  user.userDelete
+);
 router.post(
   "/user/photoupload",
   requireUsers([SAD, ADM, USR]),
@@ -71,16 +75,20 @@ router.post(
   user.userProfilePhotoUpload
 );
 router.post("/user/changepassword", user.changeExistingPassword);
-router.post("/user/aduserinvite", requireUsers([ADM, HRU]), user.inviteAdUsers);
+router.post(
+  "/user/aduserinvite",
+  requireUsers([SAD, ADM, USR]),
+  user.inviteAdUsers
+);
 router.get(
   "/standardprivilege/list/:userId",
-  requireUsers([ADM]),
+  requireUsers([SAD, ADM, USR]),
   user.getStandardPrivileges
 );
 router.get("/usermenuprivilege/list", user.getUserMenuPrivileges);
 router.post(
   "/usermenuprivilege/statechange",
-  requireUsers([ADM]),
+  requireUsers([SAD, ADM, USR]),
   user.userMenuPrivilegeStateChange
 );
 
