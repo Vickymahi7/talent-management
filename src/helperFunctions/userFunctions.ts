@@ -37,12 +37,10 @@ export const createUser = async (
     });
     if (existingUser) {
       // throw new HttpConflict("User already exists for this email");
-      return res
-        .status(HttpStatusCode.Ok)
-        .json({
-          status: HttpStatusCode.Conflict,
-          message: "User already exists for this email",
-        });
+      return res.status(HttpStatusCode.Ok).json({
+        status: HttpStatusCode.Conflict,
+        message: "User already exists for this email",
+      });
     } else {
       const token = uuidv4();
 
@@ -263,15 +261,15 @@ async function getStandardMenuByUserType(
     });
   } else if (userTypeId == UserTypes.ADM) {
     standardMenuList = await db.find(StandardMenu, {
-      where: { adm: true, active: true },
+      where: { is_tenant_menu: true, adm: true, active: true },
     });
   } else if (userTypeId == UserTypes.HRU) {
     standardMenuList = await db.find(StandardMenu, {
-      where: { hru: true, active: true },
+      where: { is_tenant_menu: true, hru: true, active: true },
     });
   } else {
     standardMenuList = await db.find(StandardMenu, {
-      where: { usr: true, active: true },
+      where: { is_tenant_menu: true, usr: true, active: true },
     });
   }
   return standardMenuList;

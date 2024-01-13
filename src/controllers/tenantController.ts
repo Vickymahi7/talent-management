@@ -257,7 +257,10 @@ export const tenantUpdate = async (
   next: NextFunction
 ) => {
   try {
-    validateUpdateTenantInput(req.body);
+    const validationResponse = validateUpdateTenantInput(req.body, res);
+    if (validationResponse) {
+      return validationResponse;
+    }
 
     const response = await updateTenant(db, req.body);
 

@@ -1,3 +1,4 @@
+import { HttpStatusCode } from "axios";
 import { Request } from "express";
 import Tenant from "../models/Tenant";
 import User from "../models/User";
@@ -9,16 +10,27 @@ export const validateAddTenantInput = (tenant: Tenant): void => {
   }
 };
 
-export const validateUpdateTenantInput = (tenant: Tenant): void => {
+export const validateUpdateTenantInput = (tenant: Tenant, res: any): any => {
+  let response = null;
   if (!tenant.tenant_id) {
-    throw new HttpBadRequest("Tenant Id is required");
+    response = res.status(HttpStatusCode.Ok).json({
+      status: HttpStatusCode.BadRequest,
+      message: "Tenant Id is required",
+    });
   }
   if (!tenant.name) {
-    throw new HttpBadRequest("Name is required");
+    response = res.status(HttpStatusCode.Ok).json({
+      status: HttpStatusCode.BadRequest,
+      message: "Name is required",
+    });
   }
   if (tenant.hasOwnProperty("tenant_status_id") && !tenant.tenant_status_id) {
-    throw new HttpBadRequest("Tenant Status is required");
+    response = res.status(HttpStatusCode.Ok).json({
+      status: HttpStatusCode.BadRequest,
+      message: "Tenant Status is required",
+    });
   }
+  return response;
 };
 
 export const validateLoginInput = (

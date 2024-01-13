@@ -45,6 +45,9 @@ export default class StandardMenu {
   usr?: boolean;
 
   @Column()
+  is_tenant_menu?: boolean;
+
+  @Column()
   active?: boolean;
 
   @CreateDateColumn()

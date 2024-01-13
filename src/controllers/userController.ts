@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
-import { DeleteResult, InsertResult, MoreThan, Not } from "typeorm";
+import { MoreThan, Not } from "typeorm";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
 import { getPaginationData } from "../helperFunctions/commonFunctions";
@@ -104,7 +104,11 @@ export const userLogin = async (
     const isActiveTenant = tenant?.tenant_status_id == AccountStatusId.ACTIVE;
 
     if (user) {
-      if (!user.active || !isActiveUser || !isActiveTenant) {
+      if (!isActiveTenant) {
+        throw new HttpUnauthorized("Tenant Account Deactivated");
+      } else if (!isActiveUser) {
+        throw new HttpUnauthorized("User Account Deactivated");
+      } else if (!user.active) {
         throw new HttpUnauthorized("User Inactive");
       }
       const isPaswordMatched = await bcrypt.compare(password, user.password!);
@@ -1069,19 +1073,35 @@ export const getStandardPrivileges = async (
 ) => {
   try {
     const tenantId = req.headers.tenantId as string;
-    const userTypeId = req.headers.userTypeId as string;
     const userId = req.params.userId as string;
 
-    let superAdminCondition = "";
-    if (parseInt(userTypeId) == UserTypes.SAD) {
-      superAdminCondition = "stm.sad=1 OR";
+    const user = await db.findOne(User, {
+      where: { user_id: parseInt(userId) },
+    });
+
+    const userTypeId = user?.user_type_id;
+
+    let defaultUserType = "";
+    if (userTypeId == UserTypes.SAD) {
+      defaultUserType = "stm.sad";
+    } else if (userTypeId == UserTypes.ADM) {
+      defaultUserType = "stm.adm";
+    } else if (userTypeId == UserTypes.USR) {
+      defaultUserType = "stm.usr";
     }
 
-    const nativeQuery = `SELECT stm.standard_menu_id, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon,
-    stm.menu_order,ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, IF(ump.active=1, 1, 0) as active 
+    let userCondition = "";
+    if (userTypeId == UserTypes.SAD) {
+      userCondition = "";
+    } else {
+      userCondition = "AND stm.is_tenant_menu=1";
+    }
+
+    const nativeQuery = `SELECT stm.standard_menu_id, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon,${defaultUserType} as is_default,
+    stm.is_tenant_menu,stm.menu_order,ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, IF(ump.active=1, 1, 0) as active 
     FROM standard_menu stm 
     LEFT JOIN user_menu_privilege ump ON ump.standard_menu_id = stm.standard_menu_id AND ump.tenant_id = ? AND ump.user_id = ? 
-    WHERE stm.active=1 AND (${superAdminCondition} stm.adm=1 OR stm.hru=1 OR stm.usr=1)`;
+    WHERE stm.active=1 ${userCondition}`;
 
     let standardPrivilegeList = await db.query(nativeQuery, [
       parseInt(tenantId),
@@ -1121,7 +1141,7 @@ export const getUserMenuPrivileges = async (
     const tenantId = req.headers.tenantId as string;
     const userId = req.headers.userId as string;
     const nativeQuery = `SELECT ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, ump.standard_menu_id, 
-        ump.active, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon, stm.menu_order 
+        ump.active, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon,stm.is_tenant_menu, stm.menu_order 
         FROM user_menu_privilege ump 
         LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
         WHERE ump.tenant_id = ? AND ump.user_id = ? AND ump.active = 1`;
@@ -1171,18 +1191,6 @@ export const userMenuPrivilegeStateChange = async (
   try {
     const tenantId = req.headers.tenantId as string;
     const reqBody = req.body;
-
-    const userMenuPrivilegeData = {
-      tenant_id: parseInt(tenantId),
-      user_id: reqBody.user_id,
-      standard_menu_id: reqBody.standard_menu_id,
-      menu_order: reqBody.menu_order,
-      active: reqBody.active,
-      last_updated_dt: reqBody.last_updated_dt,
-      created_dt: reqBody.created_dt,
-    } as UserMenuPrivilege;
-
-    let response = null as InsertResult | DeleteResult | null;
 
     if (reqBody.active) {
       const response = await db.insert(UserMenuPrivilege, {
