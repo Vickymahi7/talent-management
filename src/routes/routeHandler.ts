@@ -100,55 +100,60 @@ router.get(
 // Profile Routes
 router.get(
   "/hrprofile/list",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.getHrProfileList
+);
+router.get(
+  "/hrprofile/talentpool/list",
+  requireUsers([SAD, ADM, HRU, USR]),
+  hrProfile.getTalentPoolList
 );
 router.post(
   "/hrprofile/photoupload",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   upload.single("file"),
   hrProfile.hrProfilePhotoUpload
 );
 router.post(
   "/hrprofile/resumeupload",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   upload.single("file"),
   hrProfile.hrProfileResumeUpload
 );
 router.delete(
   "/hrprofile/deleteresume/:id",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.deleteHrProfileResume
 );
 router.post(
   "/hrprofile/docupload",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   upload.single("file"),
   hrProfile.hrProfileDocUpload
 );
 router.patch(
   "/hrprofile/deletedoc",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.deleteHrProfileDoc
 );
 router.post(
   "/hrprofile/add",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.hrProfileAdd
 );
 router.patch(
   "/hrprofile/update",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.hrProfileUpdate
 );
 router.get(
   "/hrprofile/view/:id",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.hrProfileView
 );
 router.delete(
   "/hrprofile/delete/:id",
-  requireUsers([ADM, HRU, USR]),
+  requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.hrProfileDelete
 );
 

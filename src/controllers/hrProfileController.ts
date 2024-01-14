@@ -260,6 +260,86 @@ export const getHrProfileList = async (
 
 /**
  * @swagger
+ * tags:
+ *   name: Profile
+ * /hrprofile/talentpool/list:
+ *   get:
+ *     summary: Search Profiles in Talent Pool
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: searchText
+ *         description: To search Profile Title, Email Id or Skill or Summary
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status_id
+ *         description: To search based on Status Id
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getTalentPoolList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = req.headers.userId?.toString();
+    const currentUserTypeId = req.headers.userTypeId?.toString();
+    const { searchText, status_id, rows, start, sortBy, sortDirection } =
+      req.query;
+    let query = "*:*";
+    // get profiles which dont have Draft Status
+    const noDraftCondition = ` NOT status_id:${ProfileStatus.DRAFT}`;
+    if (searchText) {
+      query = `profile_title:"${searchText}" OR email_id:"${searchText}" OR skills:"${searchText}" OR summary:"${searchText}"`;
+    }
+    query = query.concat(noDraftCondition);
+    let statusQuery = "";
+    if (status_id) {
+      const statusIds = status_id as string[];
+      statusQuery = statusIds
+        .map((element) => `status_id:${element}`)
+        .join(" AND ");
+    }
+
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+
+    const queryParams: QueryParams = {
+      q: query,
+      fq: statusQuery,
+      rows: rows as string,
+      start: start as string,
+      // default sorting is by 'created_dt desc'
+      sort:
+        (sortBy?.toString() ?? "created_dt") +
+        " " +
+        (sortDirection?.toString() ?? "desc"),
+    };
+
+    // For User Type "User" - Only show Profiles created by them
+    if (parseInt(currentUserTypeId!) == UserTypes.USR)
+      queryParams.fq = `created_by_id:${currentUserId}`;
+
+    const { total, hrProfileList } = await getHrProfileFromSolr(
+      solrCore,
+      queryParams
+    );
+
+    res.status(HttpStatusCode.OK).json({ start, total, hrProfileList });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+/**
+ * @swagger
  * /hrprofile/photoupload:
  *   post:
  *     summary: Upload Profile Picture

@@ -995,7 +995,7 @@ export const sendForgotPasswordMail = async (
         message: `Password Reset Mail has been sent to ${email_id}`,
       });
     } else {
-      throw new HttpUnauthorized("Invalid Credentials");
+      throw new HttpUnauthorized("User Not Found");
     }
   } catch (error) {
     next(error);
