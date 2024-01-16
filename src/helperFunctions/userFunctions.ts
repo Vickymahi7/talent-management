@@ -124,13 +124,14 @@ export const invitedUserRegistration = async (
 };
 
 export const updateUser = async (db: any, userData: any) => {
-  console.log(userData);
   const response = await db.update(User, userData.user_id, {
     user_type_id: userData.user_type_id,
     user_name: userData.user_name,
     email_id: userData.email_id,
     phone: userData.phone,
     photo_url: userData.photo_url,
+    activation_token: userData.activation_token,
+    active: userData.active,
     user_status_id: userData.user_status_id,
     last_updated_dt: userData.last_updated_dt,
   });

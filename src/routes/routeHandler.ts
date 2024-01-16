@@ -104,6 +104,11 @@ router.get(
   hrProfile.getHrProfileList
 );
 router.get(
+  "/hrprofile/user/list",
+  requireUsers([SAD, ADM, HRU, USR]),
+  hrProfile.getUserHrProfileList
+);
+router.get(
   "/hrprofile/talentpool/list",
   requireUsers([SAD, ADM, HRU, USR]),
   hrProfile.getTalentPoolList

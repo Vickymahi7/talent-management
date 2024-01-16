@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
-import { MoreThan, Not } from "typeorm";
+import { Not } from "typeorm";
+import { v4 as uuidv4 } from "uuid";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
 import { getPaginationData } from "../helperFunctions/commonFunctions";
@@ -104,7 +105,7 @@ export const userLogin = async (
     const isActiveTenant = tenant?.tenant_status_id == AccountStatusId.ACTIVE;
 
     if (user) {
-      if (!isActiveTenant) {
+      if (user.user_type_id != UserTypes.SAD && !isActiveTenant) {
         throw new HttpUnauthorized("Tenant Account Deactivated");
       } else if (!isActiveUser) {
         throw new HttpUnauthorized("User Account Deactivated");
@@ -126,9 +127,9 @@ export const userLogin = async (
           accessToken,
           userTypeId: user.user_type_id,
           userName: user.user_name,
-          tenantLogo: tenant.logo_url,
+          tenantLogo: tenant!.logo_url,
           photo_url: user.photo_url,
-          isPrimaryUser: user.user_id == tenant.user_id,
+          isPrimaryUser: user.user_id == tenant!.user_id,
         };
         return res.status(HttpStatusCode.OK).json({ ...responseData });
       }
@@ -290,7 +291,10 @@ export const getUserActivationDetails = async (
   try {
     const token = req.params.token;
     if (!token) {
-      throw new HttpNotFound("Bad Request");
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.NOT_FOUND,
+        message: "Invalid Activation Link",
+      });
     } else {
       const user = await db.findOne(User, {
         select: { user_id: true, email_id: true, active: true },
@@ -299,7 +303,10 @@ export const getUserActivationDetails = async (
       if (user) {
         res.status(HttpStatusCode.OK).json({ user });
       } else {
-        throw new HttpNotFound("Bad Request");
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.NOT_FOUND,
+          message: "Invalid Activation Link",
+        });
       }
     }
   } catch (error) {
@@ -451,29 +458,25 @@ export const getUserList = async (
   try {
     let { lastRecordKey, perPage } = getPaginationData(req.query);
     const tenantId = req.headers.tenantId as string;
-    const userList = await db.find(User, {
-      select: {
-        user_id: true,
-        tenant_id: true,
-        user_type_id: true,
-        user_name: true,
-        email_id: true,
-        phone: true,
-        photo_url: true,
-        user_status_id: true,
-        active: true,
-        created_by_id: true,
-        last_access: true,
-        created_dt: true,
-        last_updated_dt: true,
-      },
-      where: {
-        user_id: MoreThan(lastRecordKey!),
-        tenant_id: parseInt(tenantId),
-      },
-      order: { user_id: "ASC" },
-      take: perPage,
-    });
+    const userTypeId = req.headers.userTypeId as string;
+
+    let superAdminCondition = "";
+    superAdminCondition =
+      parseInt(userTypeId) == UserTypes.SAD
+        ? ` AND usr.user_type_id = ${userTypeId}`
+        : ` AND usr.tenant_id = ${tenantId}`;
+
+    const nativeQuery = `SELECT usr.user_id, usr.tenant_id,usr.user_type_id,usr.user_name,
+      usr.email_id,usr.phone,usr.photo_url,usr.user_status_id,usr.active,usr.created_by_id,
+      usr.last_access,usr.created_dt,usr.last_updated_dt
+      FROM user usr
+      WHERE usr.user_id > ? ${superAdminCondition}
+      ORDER BY usr.user_id ASC LIMIT ?`;
+
+    const userList = (await db.query(nativeQuery, [
+      lastRecordKey!,
+      perPage,
+    ])) as User[];
 
     lastRecordKey =
       userList.length > 0 ? userList[userList.length - 1].user_id! : null;
@@ -536,22 +539,51 @@ export const userUpdate = async (
   next: NextFunction
 ) => {
   try {
+    let isEmailChange = false;
     const reqBody = req.body;
+    const userId = req.body.user_id?.toString();
 
     validateUpdateUserInput(reqBody);
 
+    const user = await db.findOne(User, {
+      where: { user_id: parseInt(userId!) },
+    });
+
     const isEmailExists = await db.findOne(User, {
-      where: { email_id: reqBody.email_id, user_id: Not(reqBody.user_id!) },
+      where: { email_id: reqBody.email_id, user_id: Not(userId!) },
     });
     if (isEmailExists) {
       throw new HttpConflict("User already exists for this email");
     } else {
+      if (user?.email_id != req.body.email_id) {
+        isEmailChange = true;
+        const token = uuidv4();
+        // send activation email
+        reqBody.activation_token = token;
+        reqBody.active = false;
+
+        const activationUrl = generateActivationUrl(token);
+
+        await sendUserActivationMail(
+          reqBody.email_id!,
+          reqBody.user_name!,
+          activationUrl
+        );
+      }
       const response = await updateUser(db, reqBody);
+
       if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({
-          status: HttpStatusCode.OK,
-          message: "User Updated",
-        });
+        if (isEmailChange) {
+          res.status(HttpStatusCode.OK).json({
+            status: HttpStatusCode.OK,
+            message: `User Updated. Activation Mail has been sent to ${reqBody.email_id}`,
+          });
+        } else {
+          res.status(HttpStatusCode.OK).json({
+            status: HttpStatusCode.OK,
+            message: "User Updated",
+          });
+        }
       } else {
         throw new HttpNotFound("User not found");
       }
@@ -887,8 +919,6 @@ export const inviteAdUsers = async (
       currentUserId!
     );
 
-    console.log(sendMailResponse);
-
     res.status(HttpStatusCode.OK).json({
       status: HttpStatusCode.OK,
       message: "Invitation Mail Sent Successfully",
@@ -987,9 +1017,6 @@ export const sendForgotPasswordMail = async (
         email_id,
         user.user_name!
       );
-
-      console.log(sendMailResponse);
-
       res.status(HttpStatusCode.OK).json({
         status: HttpStatusCode.OK,
         message: `Password Reset Mail has been sent to ${email_id}`,
@@ -1140,14 +1167,20 @@ export const getUserMenuPrivileges = async (
   try {
     const tenantId = req.headers.tenantId as string;
     const userId = req.headers.userId as string;
+    const userTypeId = req.headers.userTypeId as string;
+    let includeTenantId = "";
+    includeTenantId =
+      parseInt(userTypeId) == UserTypes.SAD
+        ? ""
+        : ` AND ump.tenant_id = ${tenantId}`;
+
     const nativeQuery = `SELECT ump.user_menu_privilege_id, ump.tenant_id, ump.user_id, ump.standard_menu_id, 
         ump.active, stm.main_menu_id,stm.main_menu, stm.menu, stm.web_url, stm.icon,stm.is_tenant_menu, stm.menu_order 
         FROM user_menu_privilege ump 
         LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
-        WHERE ump.tenant_id = ? AND ump.user_id = ? AND ump.active = 1`;
+        WHERE ump.user_id = ? AND ump.active = 1 ${includeTenantId}`;
 
     const userMenuPrivilegeList = (await db.query(nativeQuery, [
-      parseInt(tenantId),
       parseInt(userId),
     ])) as UserMenuPrivilege[];
     res.status(HttpStatusCode.OK).json({ userMenuPrivilegeList });
@@ -1256,15 +1289,21 @@ export const canUserAccess = async (
   try {
     const routeName = req.query.routeName as string;
     const tenantId = req.headers.tenantId as string;
+    const userTypeId = req.headers.userTypeId as string;
     const userId = req.headers.userId as string;
-    console.log(routeName);
+
+    let includeTenantId = "";
+    includeTenantId =
+      parseInt(userTypeId) == UserTypes.SAD
+        ? ""
+        : ` AND ump.tenant_id = ${tenantId}`;
+
     const nativeQuery = `SELECT EXISTS (SELECT ump.user_menu_privilege_id 
         FROM user_menu_privilege ump 
         LEFT JOIN standard_menu stm ON stm.standard_menu_id = ump.standard_menu_id 
-        WHERE ump.tenant_id = ? AND ump.user_id = ? AND ump.active = 1 AND stm.web_url = ?) as result`;
+        WHERE ump.user_id = ? AND ump.active = 1 AND stm.web_url = ? ${includeTenantId}) as result`;
 
     const [{ result }] = await db.query(nativeQuery, [
-      parseInt(tenantId),
       parseInt(userId),
       routeName,
     ]);

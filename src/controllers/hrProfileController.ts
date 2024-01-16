@@ -242,7 +242,9 @@ export const getHrProfileList = async (
         (sortDirection?.toString() ?? "desc"),
     };
 
-    // For User Type "User" - Only show Profiles created by them
+    console.log(queryParams);
+
+    // For User Type "User" - Only show Profiles for the User
     if (parseInt(currentUserTypeId!) == UserTypes.USR)
       queryParams.fq = `created_by_id:${currentUserId}`;
 
@@ -252,6 +254,45 @@ export const getHrProfileList = async (
     );
 
     res.status(HttpStatusCode.OK).json({ start, total, hrProfileList });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/user/list:
+ *   get:
+ *     summary: List all Profiles for the logged in User
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getUserHrProfileList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = req.headers.userId?.toString();
+    const solrCore = SOLR_CORE_PREFIX! + req.headers.tenantId;
+
+    const queryParams: QueryParams = {
+      q: "*:*",
+      fq: `user_id:${currentUserId}`,
+      sort: "created_dt desc",
+    };
+
+    const { total, hrProfileList } = await getHrProfileFromSolr(
+      solrCore,
+      queryParams
+    );
+
+    res.status(HttpStatusCode.OK).json({ total, hrProfileList });
   } catch (error) {
     console.error(error);
     next(error);
@@ -758,7 +799,9 @@ export const hrProfileAdd = async (
 
     const hrProfile = new HrProfile(otherReqData);
 
-    hrProfile.user_id = currentUserId;
+    hrProfile.user_id = req.body.is_current_user
+      ? currentUserId
+      : req.body.user_id;
     hrProfile.tenant_id = tenantId;
     hrProfile.created_by_id = currentUserId;
     hrProfile.status_id = ProfileStatus.DRAFT;
