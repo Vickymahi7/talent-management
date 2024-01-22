@@ -808,7 +808,7 @@ export const updatePassword = async (
  * /user/changepassword:
  *   patch:
  *     summary: Change Existing Password
- *     tags: [User]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -1077,10 +1077,81 @@ export const decodeResetPasswordDetails = async (
 
 /**
  * @swagger
+ * /user/photoupload:
+ *   post:
+ *     summary: Upload User Profile Photo
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: number
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *             required:
+ *               - id
+ *               - file
+ *     responses:
+ *       200:
+ *         description: Ok.
+ *     x-swagger-router-controller: "Default"
+ */
+export const userProfilePhotoUpload = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.body.id;
+    const file = req.file;
+    validatePhotoUpload(req);
+
+    const fileBuffer = file?.buffer;
+    const uploadLocation = process.env.AWS_USER_PROFILE_PIC_PATH + userId;
+    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+
+    const uploadRes = await uploadFile(
+      fileBuffer,
+      uploadLocation,
+      file?.mimetype
+    );
+
+    const userData = {
+      user_id: userId,
+      photo_url: fileUrl,
+    };
+
+    const response = await updateUser(db, userData);
+
+    if (response.affected && response.affected > 0) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "Photo Uploaded",
+      });
+    } else {
+      throw new HttpNotFound("User not found");
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * tags:
+ *   name: User Menu Privileges
+ *   description: APIs for Managing User Menu Privileges
  * /standardprivilege/list:
  *   get:
  *     summary: List Standard User Privileges
- *     tags: [Users]
+ *     tags: [User Menu Privileges]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -1152,7 +1223,7 @@ export const getStandardPrivileges = async (
  * /usermenuprivilege/list:
  *   get:
  *     summary: List User Privileges
- *     tags: [Users]
+ *     tags: [User Menu Privileges]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -1194,7 +1265,7 @@ export const getUserMenuPrivileges = async (
  * /usermenuprivilege/statechange:
  *   get:
  *     summary: Active / Inactive User Menu
- *     tags: [Users]
+ *     tags: [User Menu Privileges]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -1268,7 +1339,7 @@ export const userMenuPrivilegeStateChange = async (
  * /usermenuprivilege/routecheck:
  *   get:
  *     summary: List User Privileges
- *     tags: [Users]
+ *     tags: [User Menu Privileges]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -1310,74 +1381,6 @@ export const canUserAccess = async (
     res
       .status(HttpStatusCode.OK)
       .json({ result: result === "1" ? true : false });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @swagger
- * /user/photoupload:
- *   post:
- *     summary: Upload User Profile Photo
- *     tags: [User]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               id:
- *                 type: number
- *               file:
- *                 type: string
- *                 format: binary
- *             required:
- *               - id
- *               - file
- *     responses:
- *       200:
- *         description: Ok.
- *     x-swagger-router-controller: "Default"
- */
-export const userProfilePhotoUpload = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.body.id;
-    const file = req.file;
-    validatePhotoUpload(req);
-
-    const fileBuffer = file?.buffer;
-    const uploadLocation = process.env.AWS_USER_PROFILE_PIC_PATH + userId;
-    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
-
-    const uploadRes = await uploadFile(
-      fileBuffer,
-      uploadLocation,
-      file?.mimetype
-    );
-
-    const userData = {
-      user_id: userId,
-      photo_url: fileUrl,
-    };
-
-    const response = await updateUser(db, userData);
-
-    if (response.affected && response.affected > 0) {
-      res.status(HttpStatusCode.OK).json({
-        status: HttpStatusCode.OK,
-        message: "Photo Uploaded",
-      });
-    } else {
-      throw new HttpNotFound("User not found");
-    }
   } catch (error) {
     next(error);
   }

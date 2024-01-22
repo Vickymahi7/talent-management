@@ -456,7 +456,7 @@ export const getTenantSettings = async (
  * /tenant/logoupload:
  *   post:
  *     summary: Upload Tenant Logo
- *     tags: [Tenant]
+ *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
