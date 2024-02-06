@@ -3,7 +3,7 @@ import base64url from "base64-url";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
-import { EntityManager } from "typeorm";
+import { EntityManager, Not } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, UserTypes } from "../enums/enums";
@@ -79,6 +79,7 @@ export const createUser = async (
 
 export const invitedUserRegistration = async (
   reqBody: any,
+  res: any,
   dbConnection?: EntityManager
 ): Promise<any> => {
   try {
@@ -87,7 +88,10 @@ export const invitedUserRegistration = async (
       where: { email_id: reqBody.email_id },
     });
     if (existingUser) {
-      throw new HttpConflict("User already exists for this email");
+      return res.status(HttpStatusCode.Ok).json({
+        status: HttpStatusCode.Conflict,
+        message: "User already exists for this email",
+      });
     } else {
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(reqBody.password!, salt);
@@ -123,19 +127,75 @@ export const invitedUserRegistration = async (
   }
 };
 
-export const updateUser = async (db: any, userData: any) => {
-  const response = await db.update(User, userData.user_id, {
+export const updateUser = async (dbConnection: any, userData: any) => {
+  const existingUser = await db.findOne(User, {
+    where: { user_id: userData.user_id },
+  });
+
+  const response = await dbConnection.update(User, userData.user_id, {
     user_type_id: userData.user_type_id,
     user_name: userData.user_name,
-    email_id: userData.email_id,
+    // email_id: userData.email_id,
     phone: userData.phone,
     photo_url: userData.photo_url,
-    activation_token: userData.activation_token,
+    // activation_token: userData.activation_token,
     active: userData.active,
     user_status_id: userData.user_status_id,
     last_updated_dt: userData.last_updated_dt,
   });
-  return response;
+
+  if (existingUser?.user_type_id != userData.user_type_id) {
+    userData.tenant_id = existingUser?.tenant_id;
+    await assignDefaultMenuPrivileges(dbConnection, userData);
+  }
+
+  const isEmailChange = await handleUserEmailChange(
+    dbConnection,
+    userData.user_id,
+    userData.email_id
+  );
+
+  return { response, isEmailChange };
+};
+
+export const handleUserEmailChange = async (
+  dbConnection: any,
+  userId: number,
+  emailId: string
+) => {
+  let isEmailChange = false;
+  const user = await dbConnection.findOne(User, {
+    where: { user_id: userId },
+  });
+
+  const isEmailExists = await dbConnection.findOne(User, {
+    where: { email_id: emailId, user_id: Not(userId) },
+  });
+  if (isEmailExists) {
+    throw new HttpConflict("User already exists for this email");
+  } else {
+    if (user?.email_id != emailId) {
+      const token = uuidv4();
+
+      // update email_id
+      const response = await dbConnection.update(User, userId, {
+        email_id: emailId,
+        activation_token: token,
+        active: false,
+      });
+
+      isEmailChange = true;
+      const activationUrl = generateActivationUrl(token);
+
+      // send activation mail
+      await sendUserActivationMail(
+        user!.email_id!,
+        user!.user_name!,
+        activationUrl
+      );
+    }
+  }
+  return isEmailChange;
 };
 
 async function assignDefaultMenuPrivileges(
@@ -147,6 +207,10 @@ async function assignDefaultMenuPrivileges(
     dbConnection,
     user.user_type_id!
   );
+
+  const delResponse = await dbConnection.delete(UserMenuPrivilege, {
+    user_id: user.user_id,
+  });
 
   for (const standardMenu of standardMenuList) {
     const response = await dbConnection.save(UserMenuPrivilege, {
@@ -260,7 +324,7 @@ async function getStandardMenuByUserType(
     standardMenuList = await db.find(StandardMenu, {
       where: { sad: true, active: true },
     });
-  } else if (userTypeId == UserTypes.ADM) {
+  } else if (userTypeId == UserTypes.PUS) {
     standardMenuList = await db.find(StandardMenu, {
       where: { is_tenant_menu: true, adm: true, active: true },
     });

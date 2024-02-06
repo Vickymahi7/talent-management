@@ -1,8 +1,6 @@
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
-import { Not } from "typeorm";
-import { v4 as uuidv4 } from "uuid";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
 import { getPaginationData } from "../helperFunctions/commonFunctions";
@@ -23,7 +21,7 @@ import User from "../models/User";
 import UserMenuPrivilege from "../models/UserMenuPrivilege";
 import {
   HttpBadRequest,
-  HttpConflict,
+  HttpInternalServerError,
   HttpNotFound,
   HttpUnauthorized,
 } from "../types/errors";
@@ -190,11 +188,19 @@ export const userAdd = async (
 
     validateAddUserInput(req.body);
 
-    const response = await createUser(req.body, res);
+    await db.transaction(async (transactionalEntityManager) => {
+      const response = await createUser(
+        req.body,
+        res,
+        transactionalEntityManager
+      );
 
-    res.status(HttpStatusCode.CREATED).json({
-      status: HttpStatusCode.CREATED,
-      message: "User Created",
+      if (response.user_id) {
+        res.status(HttpStatusCode.CREATED).json({
+          status: HttpStatusCode.CREATED,
+          message: "User Created",
+        });
+      }
     });
   } catch (error) {
     next(error);
@@ -251,12 +257,256 @@ export const registerInvitedUser = async (
 
     validateAddUserInput(req.body);
 
-    const response = await invitedUserRegistration(req.body);
+    await db.transaction(async (transactionalEntityManager) => {
+      const response = await invitedUserRegistration(
+        req.body,
+        transactionalEntityManager
+      );
 
-    res.status(HttpStatusCode.CREATED).json({
-      status: HttpStatusCode.CREATED,
-      message: "User Created",
+      if (response.user_id) {
+        res.status(HttpStatusCode.CREATED).json({
+          status: HttpStatusCode.CREATED,
+          message: "User Created",
+        });
+      }
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/list:
+ *   get:
+ *     summary: List all Users
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const getUserList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    let { lastRecordKey, perPage } = getPaginationData(req.query);
+    const tenantId = req.headers.tenantId as string;
+    const userTypeId = req.headers.userTypeId as string;
+
+    let superAdminCondition = "";
+    superAdminCondition =
+      parseInt(userTypeId) == UserTypes.SAD
+        ? ` AND usr.user_type_id = ${userTypeId}`
+        : ` AND usr.tenant_id = ${tenantId}`;
+
+    const nativeQuery = `SELECT usr.user_id, usr.tenant_id,usr.user_type_id,usr.user_name,
+      usr.email_id,usr.phone,usr.photo_url,usr.user_status_id,usr.active,usr.created_by_id,
+      usr.last_access,usr.created_dt,usr.last_updated_dt
+      FROM user usr
+      WHERE usr.user_id > ? ${superAdminCondition}
+      ORDER BY usr.user_id ASC ${perPage ? `LIMIT ${perPage}` : ""}`;
+
+    const userList = (await db.query(nativeQuery, [lastRecordKey!])) as User[];
+
+    lastRecordKey =
+      userList.length > 0 ? userList[userList.length - 1].user_id! : null;
+
+    res.status(HttpStatusCode.OK).json({ lastRecordKey, userList });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/update:
+ *   patch:
+ *     summary: Update User Details
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: number
+ *               user_type_id:
+ *                 type: number
+ *               user_name:
+ *                 type: string
+ *               email_id:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               photo_url:
+ *                 type: string
+ *               user_status_id:
+ *                 type: string
+ *               active:
+ *                 type: boolean
+ *             required:
+ *               - user_id
+ *               - user_name
+ *               - email_id
+ *             example:
+ *               user_id: 1
+ *               user_type_id: null
+ *               user_name: Demo User
+ *               email_id: demouser@demo.com
+ *               phone: 9876543210
+ *               user_status_id: null
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const userUpdate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    let isEmailChange = false;
+    const reqBody = req.body;
+    const userId = req.body.user_id?.toString();
+
+    validateUpdateUserInput(reqBody);
+
+    let response: any = null;
+
+    // handling transaction
+    await db.transaction(async (transactionalEntityManager) => {
+      const updateResponse = await updateUser(
+        transactionalEntityManager,
+        reqBody
+      );
+
+      response = updateResponse.response;
+      isEmailChange = updateResponse.isEmailChange;
+    });
+
+    if (response && response.affected && response.affected > 0) {
+      if (isEmailChange) {
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: `User Updated. Activation Mail has been sent to ${reqBody.email_id}`,
+        });
+      } else {
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "User Updated",
+        });
+      }
+    } else {
+      throw new HttpNotFound("User not found");
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/view/{id}:
+ *   get:
+ *     summary: Get User Details by User Id
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const userView = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) {
+      throw new HttpBadRequest("User Id is required");
+    } else {
+      const user = await db.findOne(User, {
+        select: {
+          user_id: true,
+          tenant_id: true,
+          user_type_id: true,
+          user_name: true,
+          email_id: true,
+          phone: true,
+          photo_url: true,
+          user_status_id: true,
+          active: true,
+          created_by_id: true,
+          last_access: true,
+          created_dt: true,
+          last_updated_dt: true,
+        },
+        where: { user_id: parseInt(userId) },
+      });
+      if (user) {
+        res.status(HttpStatusCode.OK).json({ user });
+      } else {
+        throw new HttpNotFound("User not found");
+      }
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /user/delete/{id}:
+ *   delete:
+ *     summary: Delete a User by User Id
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *     - name: id
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const userDelete = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) {
+      throw new HttpBadRequest("User Id is required");
+    } else {
+      const response = await db.delete(User, userId);
+      if (response.affected && response.affected > 0) {
+        res.status(HttpStatusCode.OK).json({
+          status: HttpStatusCode.OK,
+          message: "User Deleted",
+        });
+      } else {
+        throw new HttpNotFound("User not found");
+      }
+    }
   } catch (error) {
     next(error);
   }
@@ -429,261 +679,6 @@ export const resendActivationMail = async (
         } else {
           throw new HttpBadRequest("Bad Request");
         }
-      } else {
-        throw new HttpNotFound("User not found");
-      }
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @swagger
- * /user/list:
- *   get:
- *     summary: List all Users
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: OK.
- */
-export const getUserList = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    let { lastRecordKey, perPage } = getPaginationData(req.query);
-    const tenantId = req.headers.tenantId as string;
-    const userTypeId = req.headers.userTypeId as string;
-
-    let superAdminCondition = "";
-    superAdminCondition =
-      parseInt(userTypeId) == UserTypes.SAD
-        ? ` AND usr.user_type_id = ${userTypeId}`
-        : ` AND usr.tenant_id = ${tenantId}`;
-
-    const nativeQuery = `SELECT usr.user_id, usr.tenant_id,usr.user_type_id,usr.user_name,
-      usr.email_id,usr.phone,usr.photo_url,usr.user_status_id,usr.active,usr.created_by_id,
-      usr.last_access,usr.created_dt,usr.last_updated_dt
-      FROM user usr
-      WHERE usr.user_id > ? ${superAdminCondition}
-      ORDER BY usr.user_id ASC LIMIT ?`;
-
-    const userList = (await db.query(nativeQuery, [
-      lastRecordKey!,
-      perPage,
-    ])) as User[];
-
-    lastRecordKey =
-      userList.length > 0 ? userList[userList.length - 1].user_id! : null;
-
-    res.status(HttpStatusCode.OK).json({ lastRecordKey, userList });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @swagger
- * /user/update:
- *   patch:
- *     summary: Update User Details
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               user_id:
- *                 type: number
- *               user_type_id:
- *                 type: number
- *               user_name:
- *                 type: string
- *               email_id:
- *                 type: string
- *               phone:
- *                 type: string
- *               photo_url:
- *                 type: string
- *               user_status_id:
- *                 type: string
- *               active:
- *                 type: boolean
- *             required:
- *               - user_id
- *               - user_name
- *               - email_id
- *             example:
- *               user_id: 1
- *               user_type_id: null
- *               user_name: Demo User
- *               email_id: demouser@demo.com
- *               phone: 9876543210
- *               user_status_id: null
- *     responses:
- *       200:
- *         description: OK.
- */
-export const userUpdate = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    let isEmailChange = false;
-    const reqBody = req.body;
-    const userId = req.body.user_id?.toString();
-
-    validateUpdateUserInput(reqBody);
-
-    const user = await db.findOne(User, {
-      where: { user_id: parseInt(userId!) },
-    });
-
-    const isEmailExists = await db.findOne(User, {
-      where: { email_id: reqBody.email_id, user_id: Not(userId!) },
-    });
-    if (isEmailExists) {
-      throw new HttpConflict("User already exists for this email");
-    } else {
-      if (user?.email_id != req.body.email_id) {
-        isEmailChange = true;
-        const token = uuidv4();
-        // send activation email
-        reqBody.activation_token = token;
-        reqBody.active = false;
-
-        const activationUrl = generateActivationUrl(token);
-
-        await sendUserActivationMail(
-          reqBody.email_id!,
-          reqBody.user_name!,
-          activationUrl
-        );
-      }
-      const response = await updateUser(db, reqBody);
-
-      if (response.affected && response.affected > 0) {
-        if (isEmailChange) {
-          res.status(HttpStatusCode.OK).json({
-            status: HttpStatusCode.OK,
-            message: `User Updated. Activation Mail has been sent to ${reqBody.email_id}`,
-          });
-        } else {
-          res.status(HttpStatusCode.OK).json({
-            status: HttpStatusCode.OK,
-            message: "User Updated",
-          });
-        }
-      } else {
-        throw new HttpNotFound("User not found");
-      }
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @swagger
- * /user/view/{id}:
- *   get:
- *     summary: Get User Details by User Id
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *     - name: id
- *       in: path
- *       required: true
- *       schema:
- *         type: integer
- *     responses:
- *       200:
- *         description: OK.
- */
-export const userView = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.params.id;
-    if (!userId) {
-      throw new HttpBadRequest("User Id is required");
-    } else {
-      const user = await db.findOne(User, {
-        select: {
-          user_id: true,
-          tenant_id: true,
-          user_type_id: true,
-          user_name: true,
-          email_id: true,
-          phone: true,
-          photo_url: true,
-          user_status_id: true,
-          active: true,
-          created_by_id: true,
-          last_access: true,
-          created_dt: true,
-          last_updated_dt: true,
-        },
-        where: { user_id: parseInt(userId) },
-      });
-      if (user) {
-        res.status(HttpStatusCode.OK).json({ user });
-      } else {
-        throw new HttpNotFound("User not found");
-      }
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @swagger
- * /user/delete/{id}:
- *   delete:
- *     summary: Delete a User by User Id
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *     - name: id
- *       in: path
- *       required: true
- *       schema:
- *         type: integer
- *     responses:
- *       200:
- *         description: OK.
- */
-export const userDelete = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.params.id;
-    if (!userId) {
-      throw new HttpBadRequest("User Id is required");
-    } else {
-      const response = await db.delete(User, userId);
-      if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({
-          status: HttpStatusCode.OK,
-          message: "User Deleted",
-        });
       } else {
         throw new HttpNotFound("User not found");
       }
@@ -913,16 +908,48 @@ export const inviteAdUsers = async (
     const tenantId = req.headers.tenantId?.toString();
     const { users } = req.body;
 
+    let newUsers: any[] = [];
+    let hasExistingUser = false;
+
+    for (const item of users) {
+      console.log(item.mail)
+      const existingUser = await db.findOne(User, {
+        where: { email_id: item.mail },
+      });
+      // console.log(existingUser)
+      if (existingUser) {
+        hasExistingUser = true;
+      } else {
+        newUsers.push(item);
+      }
+    }
+
     const sendMailResponse = await sendUserInvitationMail(
-      users,
+      newUsers,
       tenantId!,
       currentUserId!
     );
 
-    res.status(HttpStatusCode.OK).json({
-      status: HttpStatusCode.OK,
-      message: "Invitation Mail Sent Successfully",
-    });
+    if (hasExistingUser && newUsers.length == 0 && sendMailResponse) {
+      return res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.CONFLICT,
+        message: "Selected Users already exists",
+      });
+    } else if (hasExistingUser && sendMailResponse) {
+      return res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.CONFLICT,
+        message:
+          "One or More Users already exists. Invitation Mail has been Sent to others",
+      });
+    } else if(sendMailResponse) {
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "Invitation Mail Sent Successfully",
+      });
+    }
+    else {
+      throw new HttpInternalServerError("Something went wrong!");
+    }
   } catch (error) {
     next(error);
   }
@@ -1128,7 +1155,7 @@ export const userProfilePhotoUpload = async (
       photo_url: fileUrl,
     };
 
-    const response = await updateUser(db, userData);
+    const { response } = await updateUser(db, userData);
 
     if (response.affected && response.affected > 0) {
       res.status(HttpStatusCode.OK).json({
@@ -1182,7 +1209,7 @@ export const getStandardPrivileges = async (
     let defaultUserType = "";
     if (userTypeId == UserTypes.SAD) {
       defaultUserType = "stm.sad";
-    } else if (userTypeId == UserTypes.ADM) {
+    } else if (userTypeId == UserTypes.PUS) {
       defaultUserType = "stm.adm";
     } else if (userTypeId == UserTypes.USR) {
       defaultUserType = "stm.usr";

@@ -9,6 +9,7 @@ export async function sendUserInvitationMail(
   tenantId: string,
   createdById: string
 ) {
+  let isMailSent = false;
   const emailPromises = users.map((user) => {
     // Encode the values like TenantId-InvitedUserId-UserName-UserEamil
     const userData = {
@@ -42,12 +43,15 @@ export async function sendUserInvitationMail(
   });
 
   // Send all emails concurrently
-  Promise.all(emailPromises)
+  await Promise.all(emailPromises)
     .then((responses) => {
       console.log("All emails sent successfully:", responses);
-      return responses;
+      isMailSent = true;
     })
     .catch((error) => {
       console.error("Error sending emails:", error);
+      isMailSent = false;
     });
+
+  return isMailSent;
 }

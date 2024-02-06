@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import dotenv from "dotenv";
 import HrProfile from "../models/HrProfile";
 import QueryParams from "../types/QueryParams";
@@ -17,6 +17,19 @@ export const createSolrCore = async (tenantId: number) => {
 
     const response = await axios.post(createCoreUrl);
     return response.data;
+  } catch (error) {
+    throw new HttpInternalServerError(`Something went wrong!`);
+  }
+};
+
+export const deleteSolrCore = async (tenantId: number) => {
+  try {
+    const coreName = SOLR_CORE_PREFIX + tenantId;
+
+    const createCoreUrl = `${SOLR_BASE_URL}/admin/cores?action=UNLOAD&core=${coreName}&wt=json`;
+
+    const response = await axios.delete(createCoreUrl);
+    return response;
   } catch (error) {
     throw new HttpInternalServerError(`Something went wrong!`);
   }

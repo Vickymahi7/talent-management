@@ -242,8 +242,6 @@ export const getHrProfileList = async (
         (sortDirection?.toString() ?? "desc"),
     };
 
-    console.log(queryParams);
-
     // For User Type "User" - Only show Profiles for the User
     if (parseInt(currentUserTypeId!) == UserTypes.USR)
       queryParams.fq = `created_by_id:${currentUserId}`;

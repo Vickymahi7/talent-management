@@ -1,13 +1,20 @@
 import { NextFunction, Request, Response } from "express";
-import { MoreThan } from "typeorm";
+import { MoreThan, UpdateResult } from "typeorm";
 import { AppDataSource } from "../data-source";
 import { AccountStatusId, HttpStatusCode, UserTypes } from "../enums/enums";
 import { getPaginationData } from "../helperFunctions/commonFunctions";
-import { createSolrCore } from "../helperFunctions/hrProfleFunctions";
+import {
+  createSolrCore,
+  deleteSolrCore,
+} from "../helperFunctions/hrProfleFunctions";
 import { updateTenant } from "../helperFunctions/tenantFunctions";
 import { createUser } from "../helperFunctions/userFunctions";
 import Tenant from "../models/Tenant";
-import { HttpBadRequest, HttpNotFound } from "../types/errors";
+import {
+  HttpBadRequest,
+  HttpInternalServerError,
+  HttpNotFound,
+} from "../types/errors";
 import { uploadFile } from "../utils/s3";
 import {
   validateAddTenantInput,
@@ -105,7 +112,7 @@ export const tenantAdd = async (
       });
 
       req.body.tenant_id = response.tenant_id;
-      req.body.user_type_id = UserTypes.ADM;
+      req.body.user_type_id = UserTypes.PUS;
 
       // Create Primary User
       const userResponse = await createUser(
@@ -262,9 +269,14 @@ export const tenantUpdate = async (
       return validationResponse;
     }
 
-    const response = await updateTenant(db, req.body);
+    const response = await updateTenant(req.body);
 
-    if (response.affected && response.affected > 0) {
+    if (
+      response &&
+      response instanceof UpdateResult &&
+      response.affected &&
+      response.affected > 0
+    ) {
       res.status(HttpStatusCode.OK).json({
         status: HttpStatusCode.OK,
         message: "Tenant Updated",
@@ -368,19 +380,27 @@ export const tenantDelete = async (
   next: NextFunction
 ) => {
   try {
-    let tenantId = req.params.id;
+    let tenantId = req.params.id ? parseInt(req.params.id) : null;
     if (!tenantId) {
       throw new HttpBadRequest("Tenant Id is required");
     } else {
-      const response = await db.delete(Tenant, tenantId);
-      if (response.affected && response.affected > 0) {
-        res.status(HttpStatusCode.OK).json({
-          status: HttpStatusCode.OK,
-          message: "Tenant Deleted",
-        });
-      } else {
-        throw new HttpNotFound("Tenant not found");
-      }
+      await db.transaction(async (transactionalEntityManager) => {
+        const response = await transactionalEntityManager.delete(
+          Tenant,
+          tenantId
+        );
+        if (response.affected && response.affected > 0) {
+          // delete Solr Core
+          const solrDelResponse = await deleteSolrCore(tenantId!);
+
+          if (solrDelResponse.status == HttpStatusCode.OK) {
+            return res.status(HttpStatusCode.OK).json({
+              status: HttpStatusCode.OK,
+              message: "Tenant Deleted",
+            });
+          }
+        }
+      });
     }
   } catch (error) {
     next(error);
@@ -504,7 +524,7 @@ export const tenantLogoUpload = async (
       logo_url: fileUrl,
     };
 
-    const response = await updateTenant(db, tenantData);
+    const response = await updateTenant(tenantData);
 
     if (response.affected && response.affected > 0) {
       res.status(HttpStatusCode.OK).json({
