@@ -125,9 +125,9 @@ export const userLogin = async (
           accessToken,
           userTypeId: user.user_type_id,
           userName: user.user_name,
-          tenantLogo: tenant!.logo_url,
+          tenantLogo: tenant?.logo_url,
           photo_url: user.photo_url,
-          isPrimaryUser: user.user_id == tenant!.user_id,
+          isPrimaryUser: user.user_id == tenant?.user_id,
         };
         return res.status(HttpStatusCode.OK).json({ ...responseData });
       }
