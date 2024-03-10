@@ -56,8 +56,8 @@ export const createUser = async (
         active: false,
         created_by_id:
           reqBody.created_by_id == "" ? undefined : reqBody.created_by_id,
-        last_updated_dt: reqBody.last_updated_dt,
-        created_dt: reqBody.created_dt,
+        created_dt: new Date().toISOString(),
+        last_updated_dt: new Date().toISOString(),
       });
 
       await assignDefaultMenuPrivileges(dbConnection, userResponse);
@@ -106,8 +106,8 @@ export const invitedUserRegistration = async (
         user_status_id: AccountStatusId.ACTIVE,
         active: true,
         created_by_id: reqBody.created_by_id,
-        last_updated_dt: reqBody.last_updated_dt,
-        created_dt: reqBody.created_dt,
+        created_dt: new Date().toISOString(),
+        last_updated_dt: new Date().toISOString(),
       });
 
       await assignDefaultMenuPrivileges(dbConnection, userResponse);
@@ -128,6 +128,8 @@ export const invitedUserRegistration = async (
 };
 
 export const updateUser = async (dbConnection: any, userData: any) => {
+  let isEmailChange = false;
+
   const existingUser = await db.findOne(User, {
     where: { user_id: userData.user_id },
   });
@@ -141,19 +143,27 @@ export const updateUser = async (dbConnection: any, userData: any) => {
     // activation_token: userData.activation_token,
     active: userData.active,
     user_status_id: userData.user_status_id,
-    last_updated_dt: userData.last_updated_dt,
+    last_updated_dt: new Date().toISOString(),
   });
 
-  if (existingUser?.user_type_id != userData.user_type_id) {
+  if (
+    userData.hasOwnProperty("user_type_id") &&
+    existingUser?.user_type_id != userData.user_type_id
+  ) {
     userData.tenant_id = existingUser?.tenant_id;
     await assignDefaultMenuPrivileges(dbConnection, userData);
   }
 
-  const isEmailChange = await handleUserEmailChange(
-    dbConnection,
-    userData.user_id,
-    userData.email_id
-  );
+  if (
+    userData.hasOwnProperty("email_id") &&
+    existingUser?.email_id != userData.email_id
+  ) {
+    isEmailChange = await handleUserEmailChange(
+      dbConnection,
+      userData.user_id,
+      userData.email_id
+    );
+  }
 
   return { response, isEmailChange };
 };
@@ -182,6 +192,7 @@ export const handleUserEmailChange = async (
         email_id: emailId,
         activation_token: token,
         active: false,
+        last_updated_dt: new Date().toISOString(),
       });
 
       isEmailChange = true;
@@ -219,8 +230,8 @@ async function assignDefaultMenuPrivileges(
       standard_menu_id: standardMenu.standard_menu_id,
       menu_order: standardMenu.menu_order,
       active: true,
-      last_updated_dt: user.last_updated_dt,
-      created_dt: user.created_dt,
+      created_dt: new Date().toISOString(),
+      last_updated_dt: new Date().toISOString(),
     });
   }
 }

@@ -126,7 +126,7 @@ export const userLogin = async (
           userTypeId: user.user_type_id,
           userName: user.user_name,
           tenantLogo: tenant?.logo_url,
-          photo_url: user.photo_url,
+          userPhoto: user.photo_url,
           isPrimaryUser: user.user_id == tenant?.user_id,
         };
         return res.status(HttpStatusCode.OK).json({ ...responseData });
@@ -783,6 +783,7 @@ export const updatePassword = async (
 
       const response = await db.update(User, user.user_id, {
         password: hashedPassword,
+        last_updated_dt: new Date().toISOString(),
       });
 
       if (response.affected && response.affected > 0) {
@@ -855,6 +856,7 @@ export const changeExistingPassword = async (
 
         const response = await db.update(User, user.user_id, {
           password: hashedPassword,
+          last_updated_dt: new Date().toISOString(),
         });
 
         if (response.affected && response.affected > 0) {
@@ -912,7 +914,7 @@ export const inviteAdUsers = async (
     let hasExistingUser = false;
 
     for (const item of users) {
-      console.log(item.mail)
+      console.log(item.mail);
       const existingUser = await db.findOne(User, {
         where: { email_id: item.mail },
       });
@@ -941,13 +943,12 @@ export const inviteAdUsers = async (
         message:
           "One or More Users already exists. Invitation Mail has been Sent to others",
       });
-    } else if(sendMailResponse) {
+    } else if (sendMailResponse) {
       res.status(HttpStatusCode.OK).json({
         status: HttpStatusCode.OK,
         message: "Invitation Mail Sent Successfully",
       });
-    }
-    else {
+    } else {
       throw new HttpInternalServerError("Something went wrong!");
     }
   } catch (error) {
@@ -1330,8 +1331,8 @@ export const userMenuPrivilegeStateChange = async (
         standard_menu_id: reqBody.standard_menu_id,
         menu_order: reqBody.menu_order,
         active: reqBody.active,
-        last_updated_dt: reqBody.last_updated_dt,
-        created_dt: reqBody.created_dt,
+        created_dt: new Date().toISOString(),
+        last_updated_dt: new Date().toISOString(),
       });
       if (response.raw?.affectedRows && response.raw.affectedRows > 0) {
         res.status(HttpStatusCode.OK).json({

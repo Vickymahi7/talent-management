@@ -13,7 +13,7 @@ const router: Router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const { SAD, PUS, HRU, USR } = UserTypes;
+const { SAD, PUS, USR } = UserTypes;
 
 // Swagger Docs Route
 router.use("/docs", swaggerUi.serve, swaggerUi.setup(swagger));
@@ -43,7 +43,7 @@ router.get(
 );
 router.post(
   "/tenant/logoupload",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   upload.single("file"),
   tenant.tenantLogoUpload
 );
@@ -100,66 +100,71 @@ router.get(
 // Profile Routes
 router.get(
   "/hrprofile/list",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.getHrProfileList
 );
 router.get(
   "/hrprofile/user/list",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.getUserHrProfileList
 );
 router.get(
   "/hrprofile/talentpool/list",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.getTalentPoolList
 );
 router.post(
   "/hrprofile/photoupload",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   upload.single("file"),
   hrProfile.hrProfilePhotoUpload
 );
 router.post(
   "/hrprofile/resumeupload",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   upload.single("file"),
   hrProfile.hrProfileResumeUpload
 );
 router.delete(
   "/hrprofile/deleteresume/:id",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.deleteHrProfileResume
 );
 router.post(
   "/hrprofile/docupload",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   upload.single("file"),
   hrProfile.hrProfileDocUpload
 );
 router.patch(
   "/hrprofile/deletedoc",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.deleteHrProfileDoc
 );
 router.post(
   "/hrprofile/add",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.hrProfileAdd
 );
 router.patch(
   "/hrprofile/update",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.hrProfileUpdate
 );
 router.get(
   "/hrprofile/view/:id",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.hrProfileView
 );
 router.delete(
   "/hrprofile/delete/:id",
-  requireUsers([SAD, PUS, HRU, USR]),
+  requireUsers([SAD, PUS, USR]),
   hrProfile.hrProfileDelete
+);
+router.get(
+  "/hrprofile/generatecontent",
+  requireUsers([SAD, PUS, USR]),
+  hrProfile.generateResumeContent
 );
 
 export default router;

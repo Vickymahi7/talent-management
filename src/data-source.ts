@@ -19,4 +19,5 @@ export const AppDataSource = new DataSource({
   entities: [User, Tenant, UserMenuPrivilege, StandardMenu],
   subscribers: [],
   migrations: [],
+  timezone: "Z",
 });

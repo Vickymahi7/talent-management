@@ -41,8 +41,8 @@ export default class HrProfile {
   user_id?: string | number;
   active?: boolean;
   created_by_id?: string | number;
-  created_dt?: Date;
-  last_updated_dt?: Date;
+  created_dt?: Date | string;
+  last_updated_dt?: Date | string;
   skills?: any;
   work_experience?: any;
   project?: any;

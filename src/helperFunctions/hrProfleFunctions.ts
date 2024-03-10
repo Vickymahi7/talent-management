@@ -70,7 +70,7 @@ export async function hrProfileSolrUpdate(
     _version_ should not be sent while updating */
   const { id, _version_, ...updateValues } = reqData;
 
-  updateValues.last_updated_dt = new Date();
+  updateValues.last_updated_dt = new Date().toISOString();
 
   const hrProfile = new HrProfile(updateValues);
 

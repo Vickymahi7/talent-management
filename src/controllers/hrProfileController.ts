@@ -10,6 +10,7 @@ import {
 import HrProfile from "../models/HrProfile";
 import QueryParams from "../types/QueryParams";
 import { HttpBadRequest, HttpNotFound } from "../types/errors";
+import { getOpenAiAnswer } from "../utils/openai";
 import { deleteFile, uploadFile } from "../utils/s3";
 import {
   validateAddHrProfileInput,
@@ -803,8 +804,8 @@ export const hrProfileAdd = async (
     hrProfile.tenant_id = tenantId;
     hrProfile.created_by_id = currentUserId;
     hrProfile.status_id = ProfileStatus.DRAFT;
-    hrProfile.created_dt = new Date();
-    hrProfile.last_updated_dt = new Date();
+    hrProfile.created_dt = new Date().toISOString();
+    hrProfile.last_updated_dt = new Date().toISOString();
 
     await axios.post(`${SOLR_BASE_URL}/${solrCore}/update?commit=true`, [
       hrProfile,
@@ -972,6 +973,59 @@ export const hrProfileView = async (
     } else {
       throw new HttpNotFound("Profile Not Found");
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /hrprofile/generatecontent:
+ *   get:
+ *     summary: View Profile
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: profileTitle
+ *         description: To generate content for this Profile Title
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: topic
+ *         description: Resume Topic to generate
+ *         schema:
+ *           type: string
+ *     example:
+ *        profileTitle: Full Stack Developer
+ *        topic: about
+ *     responses:
+ *       200:
+ *         description: OK.
+ */
+export const generateResumeContent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const profileTitle = req.query.profileTitle as string;
+    const topic = req.query.topic as string;
+    const characterLength = parseInt(req.query.characterLength!.toString());
+    const answerType = req.query.answerType as string;
+
+    if (!profileTitle) {
+      throw new HttpBadRequest("Profile Title is required");
+    }
+
+    const content = await getOpenAiAnswer(profileTitle, topic, characterLength, answerType);
+
+    // if (content) {
+      return res.status(HttpStatusCode.OK).json({ content });
+    // } else {
+    //   throw new HttpNotFound("Profile Not Found");
+    // }
   } catch (error) {
     next(error);
   }

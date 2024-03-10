@@ -30,17 +30,10 @@ export default class UserMenuPrivilege {
   @Column()
   active?: boolean;
 
-  @CreateDateColumn({
-    type: "timestamp",
-    default: () => "CURRENT_TIMESTAMP(6)",
-  })
+  @CreateDateColumn()
   created_dt?: Date;
 
-  @UpdateDateColumn({
-    type: "timestamp",
-    default: () => "CURRENT_TIMESTAMP(6)",
-    onUpdate: "CURRENT_TIMESTAMP(6)",
-  })
+  @UpdateDateColumn()
   last_updated_dt?: Date;
 
   @OneToOne(() => User, (user) => user.user_menu_privilege)

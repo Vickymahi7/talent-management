@@ -109,6 +109,8 @@ export const tenantAdd = async (
         is_official_contact_info: req.body.is_official_contact_info,
         is_skill_experience: req.body.is_skill_experience,
         created_by_id: currentUserId == "" ? undefined : currentUserId,
+        created_dt: new Date().toISOString(),
+        last_updated_dt: new Date().toISOString(),
       });
 
       req.body.tenant_id = response.tenant_id;
