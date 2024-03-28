@@ -1,10 +1,12 @@
 import nodemailer from "nodemailer";
 import { MailOptions } from "nodemailer/lib/sendmail-transport";
 import { HttpInternalServerError } from "../types/errors";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT!),
   secure: true,
   auth: {
     user: process.env.NODE_MAIL_EMAIL_ID,

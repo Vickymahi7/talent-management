@@ -38,6 +38,7 @@
     "@types/multer": "^1.4.8",
     "@types/node": "^20.8.4",
     "@types/nodemailer": "^6.4.14",
+    "@types/swagger-jsdoc": "^6.0.4",
     "@types/uuid": "^9.0.7",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",

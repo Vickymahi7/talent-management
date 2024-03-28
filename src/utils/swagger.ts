@@ -1,4 +1,8 @@
-const swaggerJsdoc = require("swagger-jsdoc");
+import dotenv from "dotenv";
+import swaggerJsdoc from "swagger-jsdoc";
+dotenv.config();
+
+const baseURL = process.env.DEPLOYMENT_URL || 'http://localhost:3000';
 
 const options = {
   definition: {
@@ -10,7 +14,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3000/api/v1",
+        url: `${baseURL}/api/v1`,
       },
     ],
     components: {
