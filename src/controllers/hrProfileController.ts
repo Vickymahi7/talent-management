@@ -1,7 +1,7 @@
 import axios from "axios";
 import dotenv from "dotenv";
 import { NextFunction, Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
+import path from "path";
 import { HttpStatusCode, ProfileStatus, UserTypes } from "../enums/enums";
 import {
   getHrProfileFromSolr,
@@ -9,9 +9,8 @@ import {
 } from "../helperFunctions/hrProfleFunctions";
 import HrProfile from "../models/HrProfile";
 import QueryParams from "../types/QueryParams";
-import { HttpBadRequest, HttpNotFound } from "../types/errors";
+import { HttpBadRequest, HttpInternalServerError, HttpNotFound } from "../types/errors";
 import { getOpenAiAnswer } from "../utils/openai";
-import { deleteFile, uploadFile } from "../utils/s3";
 import {
   validateAddHrProfileInput,
   validateDocUpload,
@@ -19,6 +18,7 @@ import {
   validateResumeUpload,
   validateUpdateHrProfileInput,
 } from "../validations/validations";
+import { deleteFile } from "../helperFunctions/commonFunctions";
 dotenv.config();
 
 const SOLR_BASE_URL = process.env.SOLR_BASE_URL;
@@ -407,7 +407,7 @@ export const getTalentPoolList = async (
  *     x-swagger-router-controller: "Default"
  */
 export const hrProfilePhotoUpload = async (
-  req: Request,
+  req: any,
   res: Response,
   next: NextFunction
 ) => {
@@ -416,15 +416,8 @@ export const hrProfilePhotoUpload = async (
     const file = req.file;
     validatePhotoUpload(req);
 
-    const fileBuffer = file?.buffer;
-    const uploadLocation = process.env.AWS_PROFILE_PIC_PATH + id;
-    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+    const fileUrl = req.uploadUrl;
 
-    const uploadRes = await uploadFile(
-      fileBuffer,
-      uploadLocation,
-      file?.mimetype
-    );
 
     req.body.photo_url = fileUrl;
 
@@ -468,7 +461,7 @@ export const hrProfilePhotoUpload = async (
  *     x-swagger-router-controller: "Default"
  */
 export const hrProfileResumeUpload = async (
-  req: Request,
+  req: any,
   res: Response,
   next: NextFunction
 ) => {
@@ -477,15 +470,8 @@ export const hrProfileResumeUpload = async (
     const file = req.file;
     validateResumeUpload(req);
 
-    const fileBuffer = file?.buffer;
-    const uploadLocation = process.env.AWS_RESUME_PATH + id;
-    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
+    const fileUrl = req.uploadUrl;
 
-    const uploadRes = await uploadFile(
-      fileBuffer,
-      uploadLocation,
-      file?.mimetype
-    );
 
     req.body.resume_url = fileUrl;
 
@@ -528,11 +514,11 @@ export const deleteHrProfileResume = async (
     const id = req.params.id;
 
     if (id) {
-      const uploadLocation = process.env.AWS_RESUME_PATH + id;
+      const uploadLocation = path.resolve(process.env.AWS_SAVE_URL!, process.env.AWS_RESUME_PATH!, id);
 
-      const uploadRes = await deleteFile(uploadLocation);
+      const uploadStatus = await deleteFile(uploadLocation);
 
-      if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
+      if (uploadStatus === HttpStatusCode.OK) {
         const data = { id, resume_url: null };
         const response = await hrProfileSolrUpdate(req, data);
 
@@ -540,8 +526,10 @@ export const deleteHrProfileResume = async (
           status: HttpStatusCode.OK,
           message: "Resume Deleted",
         });
+      } else if (uploadStatus=== HttpStatusCode.NOT_FOUND) {
+        throw new HttpNotFound("File cannot be found");
       } else {
-        throw new HttpBadRequest("Error deleting file");
+        throw new HttpInternalServerError("Error deleting file");
       }
     } else {
       throw new HttpBadRequest("File cannot be found");
@@ -586,7 +574,7 @@ export const deleteHrProfileResume = async (
  *     x-swagger-router-controller: "Default"
  */
 export const hrProfileDocUpload = async (
-  req: Request,
+  req: any,
   res: Response,
   next: NextFunction
 ) => {
@@ -594,22 +582,12 @@ export const hrProfileDocUpload = async (
     const file = req.file;
     validateDocUpload(req);
     const { title } = req.body;
+    const docId = req.docId;
 
     // docs will be a JSON string, because of FormData
     const docs = req.body.docs ? JSON.parse(req.body.docs) : [];
+    const fileUrl = req.uploadUrl;
 
-    const docId = uuidv4();
-    const fileBuffer = file?.buffer;
-    const fileExtension = file?.originalname.split(".").pop();
-    const uploadLocation =
-      process.env.AWS_DOC_PATH! + docId + "." + fileExtension;
-    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
-
-    const uploadDoc = await uploadFile(
-      fileBuffer,
-      uploadLocation,
-      file?.mimetype
-    );
     const newDoc = {
       id: docId,
       title: title,
@@ -669,25 +647,23 @@ export const deleteHrProfileDoc = async (
   next: NextFunction
 ) => {
   try {
-    const { doc_id, path } = req.body;
+    const { doc_id } = req.body;
 
     if (doc_id) {
-      const fileExtension = path?.split(".").pop();
-      const uploadLocation =
-        process.env.AWS_DOC_PATH! + doc_id + "." + fileExtension;
+
+      const uploadLocation = path.resolve(process.env.AWS_SAVE_URL!, process.env.AWS_DOC_PATH!, doc_id);
 
       const uploadRes = await deleteFile(uploadLocation);
 
-      if (uploadRes.$metadata.httpStatusCode == HttpStatusCode.OK) {
-        const response = await hrProfileSolrUpdate(req, req.body);
+      delete req.body.doc_id;
+      delete req.body.path;
+      
+      const response = await hrProfileSolrUpdate(req, req.body);
 
-        res.status(HttpStatusCode.OK).json({
-          status: HttpStatusCode.OK,
-          message: "Resume Deleted",
-        });
-      } else {
-        throw new HttpBadRequest("Error deleting file");
-      }
+      res.status(HttpStatusCode.OK).json({
+        status: HttpStatusCode.OK,
+        message: "Resume Deleted",
+      });
     } else {
       throw new HttpBadRequest("File cannot be found");
     }
@@ -1019,10 +995,15 @@ export const generateResumeContent = async (
       throw new HttpBadRequest("Profile Title is required");
     }
 
-    const content = await getOpenAiAnswer(profileTitle, topic, characterLength, answerType);
+    const content = await getOpenAiAnswer(
+      profileTitle,
+      topic,
+      characterLength,
+      answerType
+    );
 
     // if (content) {
-      return res.status(HttpStatusCode.OK).json({ content });
+    return res.status(HttpStatusCode.OK).json({ content });
     // } else {
     //   throw new HttpNotFound("Profile Not Found");
     // }

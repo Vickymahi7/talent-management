@@ -5,12 +5,21 @@ import * as hrProfile from "../controllers/hrProfileController";
 import * as tenant from "../controllers/tenantController";
 import * as user from "../controllers/userController";
 import { UserTypes } from "../enums/enums";
+import { destinationPath } from "../helperFunctions/commonFunctions";
 import { checkUserAuth, requireUsers } from "../middlewares/authMiddleware";
 import swagger from "../utils/swagger";
+import path from "path";
 
 const router: Router = express.Router();
+const projectRoot = path.resolve(process.cwd());
 
-const storage = multer.memoryStorage();
+// const storage = multer.memoryStorage();
+const storage = multer.diskStorage({
+  destination: destinationPath,
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
+  },
+});
 const upload = multer({ storage: storage });
 
 const { SAD, PUS, USR } = UserTypes;
@@ -28,8 +37,26 @@ router.post("/user/forgotpassword", user.sendForgotPasswordMail);
 router.get("/user/resetpassword/decode/:key", user.decodeResetPasswordDetails);
 router.post("/user/updatepassword", user.updatePassword);
 
+// Serve static files from the 'uploads' directory relative to the project root
+router.get('/uploads/:dir1/:dir2/:fileName', (req, res, next) => {
+  const dir1 = req.params.dir1;
+  const dir2 = req.params.dir2;
+
+  let filePath = '';
+  if (req.params.fileName) {
+    const fileName = req.params.fileName;
+    filePath = path.resolve(process.cwd(), 'uploads', dir1, dir2, fileName);
+  }
+  else {
+    const fileName = req.params.dir2;
+    filePath = path.resolve(process.cwd(), 'uploads', dir1, fileName);
+  }
+  res.sendFile(filePath);
+});
+
 // Protected Routes
 router.use(checkUserAuth);
+
 // Tenant Routes
 router.post("/tenant/add", requireUsers([SAD]), tenant.tenantAdd);
 router.get("/tenant/list", requireUsers([SAD]), tenant.getTenantList);

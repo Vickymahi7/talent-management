@@ -25,7 +25,6 @@ import {
   HttpNotFound,
   HttpUnauthorized,
 } from "../types/errors";
-import { uploadFile } from "../utils/s3";
 import {
   validateAddUserInput,
   validateLoginInput,
@@ -252,9 +251,6 @@ export const registerInvitedUser = async (
   next: NextFunction
 ) => {
   try {
-    // const tenantId = req.headers.tenantId?.toString();
-    // req.body.tenant_id = parseInt(tenantId!);
-
     validateAddUserInput(req.body);
 
     await db.transaction(async (transactionalEntityManager) => {
@@ -375,7 +371,6 @@ export const userUpdate = async (
   try {
     let isEmailChange = false;
     const reqBody = req.body;
-    const userId = req.body.user_id?.toString();
 
     validateUpdateUserInput(reqBody);
 
@@ -1132,7 +1127,7 @@ export const decodeResetPasswordDetails = async (
  *     x-swagger-router-controller: "Default"
  */
 export const userProfilePhotoUpload = async (
-  req: Request,
+  req: any,
   res: Response,
   next: NextFunction
 ) => {
@@ -1140,16 +1135,7 @@ export const userProfilePhotoUpload = async (
     const userId = req.body.id;
     const file = req.file;
     validatePhotoUpload(req);
-
-    const fileBuffer = file?.buffer;
-    const uploadLocation = process.env.AWS_USER_PROFILE_PIC_PATH + userId;
-    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
-
-    const uploadRes = await uploadFile(
-      fileBuffer,
-      uploadLocation,
-      file?.mimetype
-    );
+    const fileUrl = req.uploadUrl;
 
     const userData = {
       user_id: userId,

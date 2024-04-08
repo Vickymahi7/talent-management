@@ -15,7 +15,6 @@ import {
   HttpInternalServerError,
   HttpNotFound,
 } from "../types/errors";
-import { uploadFile } from "../utils/s3";
 import {
   validateAddTenantInput,
   validateAddUserInput,
@@ -502,7 +501,7 @@ export const getTenantSettings = async (
  *     x-swagger-router-controller: "Default"
  */
 export const tenantLogoUpload = async (
-  req: Request,
+  req: any,
   res: Response,
   next: NextFunction
 ) => {
@@ -511,15 +510,7 @@ export const tenantLogoUpload = async (
     const file = req.file;
     validatePhotoUpload(req);
 
-    const fileBuffer = file?.buffer;
-    const uploadLocation = process.env.AWS_TENANT_LOGO_PATH + tenantId;
-    const fileUrl = `${process.env.AWS_SAVE_URL!}/${uploadLocation}`;
-
-    const uploadRes = await uploadFile(
-      fileBuffer,
-      uploadLocation,
-      file?.mimetype
-    );
+    const fileUrl = req.uploadUrl;
 
     const tenantData = {
       tenant_id: tenantId,
